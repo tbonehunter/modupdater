@@ -1,0 +1,47 @@
+# pyproject.toml - SMAPI Mod Updater package configuration
+#
+# For pip install:
+#   Place this file in the repo root alongside the smapi_mod_updater/ folder.
+#   Then run: pip install .
+#
+# For clone-and-run:
+#   cd smapi_mod_updater/
+#   pip install -r requirements.txt
+#   python main.py
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smapi-mod-updater"
+version = "1.0.0"
+description = "A cross-platform GUI tool to streamline updating Stardew Valley SMAPI mods from Nexus Mods."
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "Nortek LLC"},
+]
+keywords = ["stardew-valley", "smapi", "mods", "updater", "nexus"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Games/Entertainment",
+]
+dependencies = [
+    "customtkinter>=5.2.0",
+    "watchdog>=3.0.0",
+]
+
+[project.scripts]
+smapi-mod-updater = "smapi_mod_updater.main:main"
+
+[project.urls]
+Homepage = "https://github.com/nortekllc/smapi-mod-updater"
+
+[tool.setuptools.packages.find]
+include = ["smapi_mod_updater*"]

@@ -1,0 +1,26 @@
+# .gitignore - SMAPI Mod Updater
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Config (user-specific paths)
+smapi_updater_config.json
+
+# Session log (regenerated each run)
+smapi_updater_log.txt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+._*
