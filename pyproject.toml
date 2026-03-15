@@ -41,7 +41,7 @@ dependencies = [
 smapi-mod-updater = "smapi_mod_updater.main:main"
 
 [project.urls]
-Homepage = "https://github.com/nortekllc/smapi-mod-updater"
+Homepage = "https://github.com/tbonehunter/modupdater"
 
 [tool.setuptools.packages.find]
 include = ["smapi_mod_updater*"]
