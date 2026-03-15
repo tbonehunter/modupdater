@@ -39,8 +39,8 @@ You still click "Slow Download" on each Nexus page (Nexus Premium not required),
 ### Clone and Run (simplest)
 
 ```bash
-git clone https://github.com/nortekllc/smapi-mod-updater.git
-cd smapi-mod-updater/smapi_mod_updater
+git clone https://github.com/tbonehunter/modupdater.git
+cd modupdater/smapi_mod_updater
 pip install -r requirements.txt
 python main.py
 ```
@@ -48,8 +48,8 @@ python main.py
 ### Install as Package
 
 ```bash
-git clone https://github.com/nortekllc/smapi-mod-updater.git
-cd smapi-mod-updater
+git clone https://github.com/tbonehunter/modupdater.git
+cd modupdater
 pip install .
 smapi-mod-updater
 ```
