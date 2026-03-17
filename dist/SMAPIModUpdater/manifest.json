@@ -1,8 +1,0 @@
-{
-  "Name": "SMAPI Mod Updater",
-  "Author": "tbonehunter",
-  "Version": "1.1.1",
-  "Description": "A GUI tool that streamlines updating Stardew Valley SMAPI mods from Nexus Mods. Parses SMAPI's update log, opens download pages, and automatically installs downloaded updates.",
-  "UniqueID": "tbonehunter.SMAPIModUpdater",
-  "UpdateKeys": ["Nexus:43712"]
-}
