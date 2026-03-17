@@ -6,6 +6,9 @@ to the update list via manifest.json inspection, and install them.
 Supports multi-mod archives where a single zip contains multiple
 mod folders (e.g., a SMAPI code mod + a Content Patcher pack).
 
+Preserves subfolder organization — if a mod lives at
+Mods/Pathoschild/Automate/, the update goes back to the same place.
+
 Workflow:
   1. Scan existing files in Downloads for any matching mod archives
   2. Start monitoring for new .zip files appearing
@@ -14,7 +17,7 @@ Workflow:
      b. Match each to the mod list via Nexus ID or UniqueID
      c. Verify versions match what SMAPI expected
      d. Back up old mod folders
-     e. Extract all mod folders into Mods/
+     e. Extract all mod folders into their original locations
      f. Report status back to the GUI
 
 Uses the watchdog library for cross-platform filesystem monitoring,
@@ -31,6 +34,7 @@ from backup_manager import (
     backup_mod,
     find_installed_mod_folder,
     get_nexus_id_from_manifest,
+    get_relative_mod_path,
     get_unique_id_from_manifest,
     get_version_from_manifest,
     install_all_mods_from_archive,
@@ -410,7 +414,8 @@ class DownloadWatcher:
         Process a downloaded archive: identify, match, backup, install.
 
         Handles multi-mod archives by processing all sub-mods within
-        a single zip file.
+        a single zip file. Preserves subfolder organization by using
+        relative paths from the Mods root.
         """
         self._status(f"Processing: {archive_path.name}")
 
@@ -454,7 +459,7 @@ class DownloadWatcher:
                 )
 
         # Step 4: For each sub-mod in the archive, find existing folder
-        #         and build folder overrides map
+        #         and build folder overrides map using relative paths
         folder_overrides = {}
         mods_to_backup = []
 
@@ -469,10 +474,13 @@ class DownloadWatcher:
             )
 
             if installed_folder:
-                # Use the existing folder name so we replace in-place
+                # Store the relative path so the mod goes back to its
+                # original subfolder location
+                rel_path = get_relative_mod_path(self._mods_path, installed_folder)
                 if unique_id:
-                    folder_overrides[unique_id] = installed_folder.name
+                    folder_overrides[unique_id] = rel_path
                 mods_to_backup.append((sub_name, installed_folder))
+                self._status(f"  Found {sub_name} at {rel_path}")
             else:
                 self._status(f"  No existing install for {sub_name} — fresh install.")
 

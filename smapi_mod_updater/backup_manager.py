@@ -8,6 +8,9 @@ Handles the file operations for mod updates:
 Supports multi-mod archives where a single zip contains multiple
 mod folders (e.g., a SMAPI code mod + a Content Patcher pack).
 
+Preserves subfolder organization — if a mod lives at
+Mods/Category/Automate/, the update goes back to the same place.
+
 Keeps exactly one previous version per mod (overwrites older backups).
 """
 
@@ -71,6 +74,7 @@ def _parse_manifest(text: str) -> Optional[dict]:
     except json.JSONDecodeError:
         return None
 
+
 def read_manifest_from_folder(mod_folder: Path) -> Optional[dict]:
     """
     Read manifest.json from an installed mod folder.
@@ -110,8 +114,8 @@ def read_all_manifests_from_archive(archive_path: Path) -> list[dict]:
 
     Handles multi-mod archives like:
       StonerValley/
-      ├── StonerValley Code/manifest.json      (SMAPI mod)
-      └── [CP] StonerValley/manifest.json      (Content Pack)
+      +-- StonerValley Code/manifest.json      (SMAPI mod)
+      +-- [CP] StonerValley/manifest.json      (Content Pack)
 
     Returns a list of dicts, each containing:
       - manifest: dict    The parsed manifest.json contents
@@ -223,13 +227,56 @@ def get_version_from_manifest(manifest: dict) -> Optional[str]:
 
 # ─── Matching Downloaded Archive to Installed Mod ─────────────────
 
+def _walk_mod_folders(mods_path: Path) -> list[Path]:
+    """
+    Recursively find all folders containing a manifest.json under mods_path.
+
+    Walks the directory tree, skipping hidden folders and the .backups
+    directory. Stops descending into a folder once a manifest.json is
+    found (a mod folder won't contain nested mod folders).
+
+    Returns a list of Paths to folders that contain manifest.json.
+    """
+    mod_folders = []
+
+    def _walk(directory: Path):
+        try:
+            entries = sorted(directory.iterdir())
+        except OSError:
+            return
+
+        for entry in entries:
+            if not entry.is_dir():
+                continue
+            # Skip hidden folders and backups
+            if entry.name.startswith(("_", ".")):
+                continue
+
+            # Check if this folder has a manifest
+            if (entry / "manifest.json").is_file():
+                mod_folders.append(entry)
+                # Don't descend further — mod folders don't nest
+            else:
+                # No manifest here — keep looking deeper
+                _walk(entry)
+
+    _walk(mods_path)
+    return mod_folders
+
+
 def find_installed_mod_folder(mods_path: Path, nexus_id: Optional[int] = None,
                                unique_id: Optional[str] = None) -> Optional[Path]:
     """
     Find the installed mod folder that matches the given identifiers.
 
-    Searches all subdirectories of the Mods folder, reading each manifest.json
-    to match by Nexus mod ID (primary) or UniqueID (fallback).
+    Recursively searches all subdirectories of the Mods folder,
+    reading each manifest.json to match by UniqueID (primary) or
+    Nexus mod ID (fallback).
+
+    Supports organized Mods folders like:
+      Mods/Pathoschild/Automate/manifest.json
+      Mods/CJB/CJBItemSpawner/manifest.json
+      Mods/Utilities/Framework/SpaceCore/manifest.json
 
     Args:
         mods_path:  Path to the Mods directory
@@ -242,10 +289,7 @@ def find_installed_mod_folder(mods_path: Path, nexus_id: Optional[int] = None,
     if nexus_id is None and unique_id is None:
         return None
 
-    dirs = [
-        entry for entry in mods_path.iterdir()
-        if entry.is_dir() and not entry.name.startswith(("_", "."))
-    ]
+    dirs = _walk_mod_folders(mods_path)
 
     # Pass 1: Match by UniqueID (most specific — critical for multi-mod
     # archives where sub-mods share the same Nexus ID)
@@ -269,6 +313,29 @@ def find_installed_mod_folder(mods_path: Path, nexus_id: Optional[int] = None,
                 return entry
 
     return None
+
+
+def get_relative_mod_path(mods_path: Path, mod_folder: Path) -> str:
+    """
+    Get the path of a mod folder relative to the Mods root.
+
+    Examples:
+      mods_path = D:/Stardew Valley/Mods
+      mod_folder = D:/Stardew Valley/Mods/Pathoschild/Automate
+      returns "Pathoschild/Automate"
+
+      mod_folder = D:/Stardew Valley/Mods/SpaceCore
+      returns "SpaceCore"
+
+    Returns a forward-slash-separated relative path string.
+    """
+    try:
+        rel = mod_folder.relative_to(mods_path)
+        # Use forward slashes for consistency
+        return str(rel).replace("\\", "/")
+    except ValueError:
+        # mod_folder isn't under mods_path — shouldn't happen but be safe
+        return mod_folder.name
 
 
 # ─── Backup ───────────────────────────────────────────────────────
@@ -357,7 +424,7 @@ def _extract_mod_folder(zf: zipfile.ZipFile, prefix: str,
     Args:
         zf:          Open ZipFile to read from
         prefix:      Path prefix to strip (e.g., "StonerValley/StonerValley Code/")
-        target_path: Destination folder in Mods/
+        target_path: Destination folder (full path including any subfolder structure)
 
     Returns:
         Number of files extracted.
@@ -382,7 +449,6 @@ def _extract_mod_folder(zf: zipfile.ZipFile, prefix: str,
         if prefix and not member.filename.startswith(prefix):
             continue
 
-        # For empty prefix (root-level mod), extract everything
         # Calculate the relative path after stripping prefix
         if prefix:
             rel_path = member.filename[len(prefix):]
@@ -391,13 +457,6 @@ def _extract_mod_folder(zf: zipfile.ZipFile, prefix: str,
 
         if not rel_path:
             continue
-
-        # Don't extract files that belong to a sibling mod folder
-        # (relevant for root-level prefix with multi-mod archives)
-        if prefix == "" and "/" in rel_path:
-            # This shouldn't happen for root-level single mods,
-            # but guard against it
-            pass
 
         # Create subdirectories as needed
         dest_file = target_path / rel_path
@@ -423,7 +482,8 @@ def install_mod_from_archive(archive_path: Path, mods_path: Path,
     Args:
         archive_path:       Path to the downloaded zip file
         mods_path:          Path to the Mods directory
-        target_folder_name: Name for the mod folder in Mods/.
+        target_folder_name: Relative path for the mod folder in Mods/.
+                            Can include subdirectories (e.g., "Pathoschild/Automate").
                             If None, uses the folder name from inside the archive.
 
     Returns:
@@ -455,20 +515,24 @@ def install_all_mods_from_archive(archive_path: Path, mods_path: Path,
     """
     Extract ALL mods from a multi-mod archive into the Mods folder.
 
+    Preserves subfolder organization: if folder_overrides maps a mod's
+    UniqueID to a relative path like "Pathoschild/Automate", the mod
+    is extracted to Mods/Pathoschild/Automate/.
+
     Args:
         archive_path:     Path to the downloaded zip file
         mods_path:        Path to the Mods directory
-        folder_overrides: Optional dict mapping UniqueID -> folder name
+        folder_overrides: Optional dict mapping UniqueID -> relative path
                           to install into existing mod folders.
-                          e.g., {"Fizz.StonerValley": "StonerValley Code",
-                                 "Fizz.StonerValley.CP": "[CP] StonerValley"}
+                          e.g., {"Pathoschild.Automate": "Pathoschild/Automate",
+                                 "BongWater.StonerValley": "StonerValley Code"}
 
     Returns:
         List of result dicts, each containing:
-          - manifest:      dict         The manifest for this sub-mod
+          - manifest:       dict          The manifest for this sub-mod
           - installed_path: Path or None  Where it was installed
-          - folder:        str          Folder name used
-          - success:       bool         Whether extraction succeeded
+          - folder:         str           Relative path used
+          - success:        bool          Whether extraction succeeded
     """
     manifests = read_all_manifests_from_archive(archive_path)
     if not manifests:
@@ -482,25 +546,25 @@ def install_all_mods_from_archive(archive_path: Path, mods_path: Path,
                 manifest = entry["manifest"]
                 unique_id = get_unique_id_from_manifest(manifest)
 
-                # Check for folder override (install into existing folder)
-                folder_name = entry["folder"]
+                # Check for folder override (install into existing location)
+                folder_rel = entry["folder"]
                 if folder_overrides and unique_id and unique_id in folder_overrides:
-                    folder_name = folder_overrides[unique_id]
+                    folder_rel = folder_overrides[unique_id]
 
-                target_path = mods_path / folder_name
+                target_path = mods_path / folder_rel
 
                 try:
                     count = _extract_mod_folder(zf, entry["prefix"], target_path)
                     success = count > 0
                 except (OSError, PermissionError) as e:
-                    print(f"[EXTRACT ERROR] {archive_path.name} -> {folder_name}: "
+                    print(f"[EXTRACT ERROR] {archive_path.name} -> {folder_rel}: "
                           f"{type(e).__name__}: {e}")
                     success = False
 
                 results.append({
                     "manifest": manifest,
                     "installed_path": target_path if success else None,
-                    "folder": folder_name,
+                    "folder": folder_rel,
                     "success": success,
                 })
 
