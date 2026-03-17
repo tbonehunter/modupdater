@@ -29,23 +29,24 @@ _PREFIX_PATTERN = re.compile(
 # After stripping the prefix, matches a mod update line:
 #   (CP) Stoner Valley 1.2.8: https://www.nexusmods.com/...mods/32742 (you have 1.2.3)
 #   Automate 2.6.0: https://www.nexusmods.com/...mods/1063 (you have 2.5.0)
+#   QuickSave 1.4.0: https://...mods/26194 (you have 1.4.0-alpha.1)
 #
 # Regex breakdown:
-#   (?:\(CP\)\s+)?   - Optional Content Pack prefix "(CP) "
-#   (.+?)            - Mod name (non-greedy)
-#   \s+              - Whitespace separator
-#   ([\d.]+)         - Available version number
-#   :\s+             - Colon and space
-#   (https?://\S+)   - Download URL
-#   \s+\(you have\s+ - " (you have "
-#   ([\d.]+)         - Current installed version
-#   \)               - Closing paren
+#   (?:\(CP\)\s+)?         - Optional Content Pack prefix "(CP) "
+#   (.+?)                  - Mod name (non-greedy)
+#   \s+                    - Whitespace separator
+#   ([\d.][\d.a-zA-Z-]*)   - Available version (digits/dots, optional pre-release suffix)
+#   :\s+                   - Colon and space
+#   (https?://\S+)         - Download URL
+#   \s+\(you have\s+       - " (you have "
+#   ([\d.][\d.a-zA-Z-]*)   - Current installed version (same flexible format)
+#   \)                     - Closing paren
 _MOD_UPDATE_PATTERN = re.compile(
     r"(?:\(CP\)\s+)?"
     r"(.+?)"
-    r"\s+([\d.]+)"
+    r"\s+([\d.][\d.a-zA-Z-]*)"
     r":\s+(https?://\S+)"
-    r"\s+\(you have\s+([\d.]+)\)$"
+    r"\s+\(you have\s+([\d.][\d.a-zA-Z-]*)\)$"
 )
 
 # Extract Nexus mod ID from URL like:
@@ -98,6 +99,7 @@ def parse_smapi_log(log_path: Path) -> list[dict]:
     updates = []
     seen_mod_ids = set()
     in_update_section = False
+    consecutive_misses = 0
 
     try:
         lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -108,6 +110,7 @@ def parse_smapi_log(log_path: Path) -> list[dict]:
         # Detect the start of the update section
         if "You can update" in line and "SMAPI" in line:
             in_update_section = True
+            consecutive_misses = 0
             continue
 
         # If we're in the update section, parse update lines
@@ -131,6 +134,7 @@ def parse_smapi_log(log_path: Path) -> list[dict]:
 
             match = _MOD_UPDATE_PATTERN.match(content)
             if match:
+                consecutive_misses = 0
                 name = match.group(1).strip()
                 available = match.group(2)
                 url = match.group(3)
@@ -155,8 +159,14 @@ def parse_smapi_log(log_path: Path) -> list[dict]:
                     "is_nexus": is_nexus,
                 })
             else:
-                # SMAPI line that doesn't match mod pattern — section is over
-                in_update_section = False
+                # Non-matching SMAPI line — might be a mod with an
+                # unusual version format we can't parse, or we've
+                # reached the end of the update section.
+                # Allow a few misses before giving up, in case a
+                # single unparseable line sits among valid ones.
+                consecutive_misses += 1
+                if consecutive_misses >= 3:
+                    in_update_section = False
 
     return updates
 
