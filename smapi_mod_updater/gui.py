@@ -120,20 +120,33 @@ class SettingsDialog(ctk.CTkToplevel):
     def __init__(self, parent, config: dict, on_save=None):
         super().__init__(parent)
         self.title("Settings")
-        self.geometry("550x380")
-        self.resizable(False, False)
+        self.geometry("600x480")
+        self.minsize(500, 380)
         self.transient(parent)
         self.grab_set()
 
         self._config = config
         self._on_save = on_save
 
-        # SMAPI Log path
-        ctk.CTkLabel(self, text="SMAPI Log File:", anchor="w",
-                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=20, pady=(16, 2))
+        # ─── Save / Cancel buttons pinned at bottom ───────────
+        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
+        btn_frame.pack(side="bottom", fill="x", padx=20, pady=(8, 16))
 
-        log_frame = ctk.CTkFrame(self, fg_color="transparent")
-        log_frame.pack(fill="x", padx=20, pady=(0, 8))
+        ctk.CTkButton(btn_frame, text="Save", width=100,
+                       command=self._save).pack(side="right", padx=(8, 0))
+        ctk.CTkButton(btn_frame, text="Cancel", width=100,
+                       command=self.destroy).pack(side="right")
+
+        # ─── Scrollable content area above buttons ────────────
+        content = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        content.pack(side="top", fill="both", expand=True, padx=4, pady=(8, 0))
+
+        # SMAPI Log path
+        ctk.CTkLabel(content, text="SMAPI Log File:", anchor="w",
+                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=16, pady=(8, 2))
+
+        log_frame = ctk.CTkFrame(content, fg_color="transparent")
+        log_frame.pack(fill="x", padx=16, pady=(0, 8))
         log_frame.grid_columnconfigure(0, weight=1)
 
         current_log = config.get("smapi_log_path", "") or ""
@@ -144,11 +157,11 @@ class SettingsDialog(ctk.CTkToplevel):
                        command=self._browse_log).grid(row=0, column=1)
 
         # Downloads folder
-        ctk.CTkLabel(self, text="Downloads Folder:", anchor="w",
-                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=20, pady=(16, 2))
+        ctk.CTkLabel(content, text="Downloads Folder:", anchor="w",
+                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=16, pady=(8, 2))
 
-        dl_frame = ctk.CTkFrame(self, fg_color="transparent")
-        dl_frame.pack(fill="x", padx=20, pady=(0, 8))
+        dl_frame = ctk.CTkFrame(content, fg_color="transparent")
+        dl_frame.pack(fill="x", padx=16, pady=(0, 8))
         dl_frame.grid_columnconfigure(0, weight=1)
 
         current_dl = config.get("downloads_folder", "") or ""
@@ -159,11 +172,11 @@ class SettingsDialog(ctk.CTkToplevel):
                        command=self._browse_downloads).grid(row=0, column=1)
 
         # Add game instance
-        ctk.CTkLabel(self, text="Add Game Instance:", anchor="w",
-                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=20, pady=(8, 2))
+        ctk.CTkLabel(content, text="Add Game Instance:", anchor="w",
+                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=16, pady=(8, 2))
 
-        add_frame = ctk.CTkFrame(self, fg_color="transparent")
-        add_frame.pack(fill="x", padx=20, pady=(0, 8))
+        add_frame = ctk.CTkFrame(content, fg_color="transparent")
+        add_frame.pack(fill="x", padx=16, pady=(0, 8))
         add_frame.grid_columnconfigure(0, weight=1)
 
         self.add_path_var = ctk.StringVar(value="")
@@ -180,8 +193,8 @@ class SettingsDialog(ctk.CTkToplevel):
                                                         sticky="ew", pady=(4, 0))
 
         # Current instances list
-        ctk.CTkLabel(self, text="Known Game Instances:", anchor="w",
-                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=20, pady=(8, 2))
+        ctk.CTkLabel(content, text="Known Game Instances:", anchor="w",
+                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=16, pady=(8, 2))
 
         instances = config.get("game_instances", [])
         if instances:
@@ -189,22 +202,12 @@ class SettingsDialog(ctk.CTkToplevel):
                 label = inst.get("label", "Unknown")
                 path = inst.get("game_path", "?")
                 text = f"  [{i}] {label}: {path}"
-                ctk.CTkLabel(self, text=text, anchor="w",
+                ctk.CTkLabel(content, text=text, anchor="w",
                               font=ctk.CTkFont(size=11, family="Courier"),
-                              text_color="gray").pack(fill="x", padx=20)
+                              text_color="gray").pack(fill="x", padx=16)
         else:
-            ctk.CTkLabel(self, text="  (none detected)", anchor="w",
-                          text_color="gray").pack(fill="x", padx=20)
-
-        # Save / Cancel buttons
-        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=(16, 16))
-
-        ctk.CTkButton(btn_frame, text="Save", width=100,
-                       command=self._save).pack(side="right", padx=(8, 0))
-        ctk.CTkButton(btn_frame, text="Cancel", width=100,
-                       fg_color="transparent", border_width=1,
-                       command=self.destroy).pack(side="right")
+            ctk.CTkLabel(content, text="  (none detected)", anchor="w",
+                          text_color="gray").pack(fill="x", padx=16)
 
     def _browse_downloads(self):
         path = filedialog.askdirectory(title="Select Downloads Folder")
@@ -396,8 +399,6 @@ class SMAPIModUpdaterGUI(ctk.CTk):
             width=100,
             height=28,
             font=ctk.CTkFont(size=12),
-            fg_color="transparent",
-            border_width=1,
             command=self._on_select_all,
         )
         select_all_btn.pack(side="left", padx=(0, 8))
@@ -408,8 +409,6 @@ class SMAPIModUpdaterGUI(ctk.CTk):
             width=100,
             height=28,
             font=ctk.CTkFont(size=12),
-            fg_color="transparent",
-            border_width=1,
             command=self._on_deselect_all,
         )
         deselect_all_btn.pack(side="left")

@@ -31,39 +31,95 @@ You still click "Slow Download" on each Nexus page (Nexus Premium not required),
 
 ## Requirements
 
-- Python 3.8+
-- [SMAPI](https://smapi.io/) installed and run at least once (so the log file exists)
+- **SMAPI** — installed and run at least once so the log file exists. Get it from [smapi.io](https://smapi.io/).
 
-## Installation
+For the **Windows download** (Option A below), that's all you need — no Python required.
 
-### Clone and Run (simplest)
+For **Mac/Linux** or if you prefer running from source (Options B and C), you also need **Python 3.8 or newer** — download from [python.org](https://www.python.org/downloads/). During installation on Windows, **check "Add Python to PATH"**.
 
+## Installation and Launch
+
+### Option A: Windows Executable (recommended for Windows)
+
+The simplest option — no Python installation required.
+
+**Step 1:** Download the latest zip from the [Nexus Mods page](https://www.nexusmods.com/stardewvalley/mods/XXXXX) or the [GitHub Releases page](https://github.com/tbonehunter/modupdater/releases).
+
+**Step 2:** Extract the zip to a convenient location (e.g., your Desktop or a Stardew modding folder).
+
+**Step 3:** Double-click `SMAPIModUpdater.exe` to launch.
+
+That's it. To run it again in the future, just double-click the exe.
+
+### Option B: Clone and Run (Mac/Linux, or Windows from source)
+
+**Step 1:** Download the code.
+
+If you have Git installed:
 ```bash
 git clone https://github.com/tbonehunter/modupdater.git
+```
+
+Or download the ZIP from the [GitHub repo page](https://github.com/tbonehunter/modupdater) (green "Code" button → "Download ZIP") and extract it somewhere convenient.
+
+**Step 2:** Open a terminal and navigate into the `smapi_mod_updater` folder:
+
+```bash
 cd modupdater/smapi_mod_updater
+```
+
+If you downloaded the ZIP and extracted it, the path will depend on where you put it. For example on Windows:
+
+```
+cd C:\Users\YourName\Downloads\modupdater-main\smapi_mod_updater
+```
+
+**Step 3:** Install the required Python libraries (one-time setup):
+
+```bash
 pip install -r requirements.txt
+```
+
+If `pip` isn't recognized, try `pip3` or `python -m pip` instead.
+
+**Step 4:** Launch the updater:
+
+```bash
 python main.py
 ```
 
-### Install as Package
+That's it — the GUI window will appear. Each time you want to run the updater in the future, just repeat Step 2 and Step 4.
+
+### Option C: Install as a Python Package
+
+This installs the tool as a system command so you can run it from anywhere.
 
 ```bash
 git clone https://github.com/tbonehunter/modupdater.git
 cd modupdater
 pip install .
+```
+
+Then launch from any terminal with:
+
+```bash
 smapi-mod-updater
 ```
 
+Note: if you see a warning about the Scripts directory not being on PATH, you can either add it to PATH or just use Option B instead.
+
 ## Usage
 
-1. **Launch the game with SMAPI** at least once so it generates an update log
-2. **Run the updater** — it auto-detects your setup and shows which mods need updating
+1. **Launch Stardew Valley with SMAPI** at least once so it generates a fresh update log, then close the game
+2. **Run the updater** (`python main.py`) — it auto-detects your setup and shows which mods need updating
 3. **Uncheck any mods** you want to skip (all are selected by default)
 4. **Click "Open Download Pages"** — your browser opens the Nexus Files tab for each mod
-5. **Click "Slow Download" on each page** in your browser
+5. **Click "Slow Download" on each Nexus page** in your browser
 6. **Click "Watch & Install"** — the tool monitors your Downloads folder and installs each mod as it arrives
 
-If you've already downloaded some mods, just click "Watch & Install" directly — it scans existing files in your Downloads folder first.
+If you've already downloaded some mods, just click "Watch & Install" directly — it scans existing files in your Downloads folder first and installs anything that matches.
+
+The "Open Download Pages" button skips mods that have already been installed in the current session, so you can click it again if you need to open pages for the remaining mods.
 
 ## Configuration
 
@@ -91,18 +147,37 @@ For multi-mod archives (like StonerValley which contains both a SMAPI mod and a 
 ## Project Structure
 
 ```
-smapi_mod_updater/
-├── main.py              # Entry point
-├── gui.py               # CustomTkinter GUI
-├── log_parser.py        # SMAPI log parsing
-├── browser_launcher.py  # Opens Nexus download pages
-├── download_watcher.py  # Watches Downloads folder, matches and installs
-├── backup_manager.py    # Backup, extract, and restore logic
-├── config_manager.py    # Config auto-detect, load, save
-├── platform_utils.py    # OS-specific path detection
-├── session_logger.py    # Per-session log file
-└── requirements.txt     # Python dependencies
+modupdater/                          ← repo root
+├── .gitignore
+├── pyproject.toml                   # For pip install (optional)
+├── README.md
+├── build_exe.py                     # Builds the Windows executable
+├── SMAPIModUpdater.spec             # PyInstaller build configuration
+└── smapi_mod_updater/               ← the actual tool
+    ├── __init__.py
+    ├── main.py                      # Entry point
+    ├── gui.py                       # CustomTkinter GUI
+    ├── log_parser.py                # SMAPI log parsing
+    ├── browser_launcher.py          # Opens Nexus download pages
+    ├── download_watcher.py          # Watches Downloads folder, matches and installs
+    ├── backup_manager.py            # Backup, extract, and restore logic
+    ├── config_manager.py            # Config auto-detect, load, save
+    ├── platform_utils.py            # OS-specific path detection
+    ├── session_logger.py            # Per-session log file
+    └── requirements.txt             # Python dependencies
 ```
+
+## Building the Windows Executable
+
+If you want to build the exe yourself (for development or to verify the build):
+
+```bash
+pip install pyinstaller
+cd modupdater
+python build_exe.py
+```
+
+This creates `dist/SMAPIModUpdater/` containing the executable, and `dist/SMAPI Mod Updater 1.0.0.zip` ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the zip.
 
 ## Known Limitations
 
@@ -116,4 +191,4 @@ MIT
 
 ## Credits
 
-Built by [Nortek LLC](https://nortekllc.com). Developed collaboratively with Claude (Anthropic).
+Designed by tbonehunter. Developed collaboratively with Claude (Anthropic) writing much of the python script.

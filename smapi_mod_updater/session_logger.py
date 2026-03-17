@@ -7,6 +7,7 @@ Also supports a GUI callback so log messages appear in both the file
 and the GUI's session log display simultaneously.
 """
 
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Callable, Optional
@@ -35,7 +36,10 @@ class SessionLogger:
                      Defaults to the directory containing this script.
         """
         if log_dir is None:
-            log_dir = Path(__file__).parent
+            if getattr(sys, 'frozen', False):
+                log_dir = Path(sys.executable).parent
+            else:
+                log_dir = Path(__file__).parent
 
         self._log_path = log_dir / LOG_FILENAME
         self._gui_callback: Optional[Callable[[str], None]] = None

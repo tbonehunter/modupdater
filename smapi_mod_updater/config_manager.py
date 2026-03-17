@@ -13,6 +13,7 @@ then persists for future sessions.
 """
 
 import json
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -22,13 +23,23 @@ from platform_utils import (
     discover_game_instances,
 )
 
-# Config file lives next to the script
+# Config file lives next to the script (or next to the exe when frozen)
 CONFIG_FILENAME = "smapi_updater_config.json"
 
 
 def _get_config_path() -> Path:
-    """Return the path to the config file, adjacent to this script."""
-    return Path(__file__).parent / CONFIG_FILENAME
+    """
+    Return the path to the config file.
+
+    When running from source: adjacent to config_manager.py
+    When running as a PyInstaller exe: adjacent to the exe itself
+    """
+    if getattr(sys, 'frozen', False):
+        # Running as a PyInstaller bundle — use the exe's directory
+        return Path(sys.executable).parent / CONFIG_FILENAME
+    else:
+        # Running from source — use the script's directory
+        return Path(__file__).parent / CONFIG_FILENAME
 
 
 def _default_config() -> dict:
