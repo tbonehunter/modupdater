@@ -1,0 +1,92 @@
+# .github/workflows/build.yml - Build cross-platform executables on release
+#
+# Triggers when a version tag is pushed (e.g., v1.2.0).
+# Builds standalone executables for Windows, macOS, and Linux using PyInstaller,
+# then uploads them as assets on the GitHub Release.
+#
+# Usage:
+#   git tag v1.2.0
+#   git push origin v1.2.0
+
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: Windows
+            archive_ext: zip
+          - os: macos-latest
+            platform: macOS
+            archive_ext: zip
+          - os: ubuntu-latest
+            platform: Linux
+            archive_ext: tar.gz
+
+    runs-on: ${{ matrix.os }}
+    name: Build (${{ matrix.platform }})
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller customtkinter watchdog
+
+      - name: Build executable
+        run: python build_exe.py
+
+      - name: List dist contents
+        run: ls -R dist/ || dir dist\ /s
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SMAPI-Mod-Updater-${{ matrix.platform }}
+          path: dist/SMAPI Mod Updater*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    name: Create Release
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: List downloaded artifacts
+        run: find artifacts/ -type f
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/**/*.zip
+            artifacts/**/*.tar.gz

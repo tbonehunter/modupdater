@@ -35,9 +35,9 @@ You still click "Slow Download" on each Nexus page (Nexus Premium not required),
 
 - **SMAPI** — installed and run at least once so the log file exists. Get it from [smapi.io](https://smapi.io/).
 
-For the **Windows download** (Option A below), that's all you need — no Python required.
+For the **pre-built downloads** (Options A and B below), that's all you need — no Python required.
 
-For **Mac/Linux** or if you prefer running from source (Options B and C), you also need **Python 3.8 or newer** — download from [python.org](https://www.python.org/downloads/). During installation on Windows, **check "Add Python to PATH"**.
+For **running from source** (Options C and D), you also need **Python 3.8 or newer** — download from [python.org](https://www.python.org/downloads/). During installation on Windows, **check "Add Python to PATH"**.
 
 ## Installation and Launch
 
@@ -45,7 +45,7 @@ For **Mac/Linux** or if you prefer running from source (Options B and C), you al
 
 The simplest option — no Python installation required.
 
-**Step 1:** Download the latest zip from the [Nexus Mods page](https://www.nexusmods.com/stardewvalley/mods/43712) or the [GitHub Releases page](https://github.com/tbonehunter/modupdater/releases).
+**Step 1:** Download the latest **Windows** zip from the [Nexus Mods page](https://www.nexusmods.com/stardewvalley/mods/43712) or the [GitHub Releases page](https://github.com/tbonehunter/modupdater/releases).
 
 **Step 2:** Extract the zip to a convenient location (e.g., your Desktop or a Stardew modding folder).
 
@@ -53,7 +53,29 @@ The simplest option — no Python installation required.
 
 That's it. To run it again in the future, just double-click the exe.
 
-### Option B: Clone and Run (Mac/Linux, or Windows from source)
+### Option B: macOS / Linux Executable (recommended for Mac and Linux)
+
+No Python installation required.
+
+**Step 1:** Download the latest archive for your platform from the [GitHub Releases page](https://github.com/tbonehunter/modupdater/releases):
+- **macOS** — `SMAPI Mod Updater x.x.x (macOS).zip`
+- **Linux** — `SMAPI Mod Updater x.x.x (Linux).tar.gz`
+
+**Step 2:** Extract the archive:
+- **macOS** — double-click the zip in Finder, or: `unzip "SMAPI Mod Updater*.zip"`
+- **Linux** — `tar xzf "SMAPI Mod Updater*.tar.gz"`
+
+**Step 3:** Run the executable:
+```bash
+cd SMAPIModUpdater
+./SMAPIModUpdater
+```
+
+**macOS Gatekeeper note:** Since the app is not signed with an Apple Developer certificate, macOS will block it the first time. To allow it:
+- Right-click (or Control-click) `SMAPIModUpdater` → **Open**, then click **Open** in the dialog, **or**
+- Run this once in Terminal: `xattr -cr SMAPIModUpdater/`
+
+### Option C: Clone and Run (any platform, from source)
 
 **Step 1:** Download the code.
 
@@ -84,6 +106,12 @@ pip install -r requirements.txt
 
 If `pip` isn't recognized, try `pip3` or `python -m pip` instead.
 
+> **macOS/Linux note:** If you see a Tkinter error on launch, install Tk support for your platform:
+> - **macOS (Homebrew):** `brew install python-tk`
+> - **Ubuntu/Debian:** `sudo apt install python3-tk`
+> - **Fedora:** `sudo dnf install python3-tkinter`
+> - **Arch:** `sudo pacman -S tk`
+
 **Step 4:** Launch the updater:
 
 ```bash
@@ -92,7 +120,7 @@ python main.py
 
 That's it — the GUI window will appear. Each time you want to run the updater in the future, just repeat Step 2 and Step 4.
 
-### Option C: Install as a Python Package
+### Option D: Install as a Python Package
 
 This installs the tool as a system command so you can run it from anywhere.
 
@@ -108,12 +136,12 @@ Then launch from any terminal with:
 smapi-mod-updater
 ```
 
-Note: if you see a warning about the Scripts directory not being on PATH, you can either add it to PATH or just use Option B instead.
+Note: if you see a warning about the Scripts directory not being on PATH, you can either add it to PATH or just use Option C instead.
 
 ## Usage
 
 1. **Launch Stardew Valley with SMAPI** at least once so it generates a fresh update log, then close the game
-2. **Run the updater** (`python main.py` or double-click the exe) — it auto-detects your setup and shows which mods need updating
+2. **Run the updater** (double-click the exe / run `./SMAPIModUpdater` / `python main.py`) — it auto-detects your setup and shows which mods need updating
 3. **Uncheck any mods** you want to skip (all are selected by default)
 4. **Click "Open Download Pages"** — your browser opens the Nexus Files tab for each mod
 5. **Click "Slow Download" on each Nexus page** in your browser
@@ -177,8 +205,9 @@ modupdater/                          ← repo root
 ├── .gitignore
 ├── pyproject.toml                   # For pip install (optional)
 ├── README.md
-├── build_exe.py                     # Builds the Windows executable
-├── SMAPIModUpdater.spec             # PyInstaller build configuration
+├── build_exe.py                     # Builds standalone executable (cross-platform)
+├── SMAPIModUpdater.spec             # PyInstaller build configuration (cross-platform)
+├── .github/workflows/build.yml     # GitHub Actions: builds all platforms on release
 └── smapi_mod_updater/               ← the actual tool
     ├── __init__.py
     ├── main.py                      # Entry point
@@ -193,17 +222,32 @@ modupdater/                          ← repo root
     └── requirements.txt             # Python dependencies
 ```
 
-## Building the Windows Executable
+## Building the Executable
 
-If you want to build the exe yourself (for development or to verify the build):
+Builds are created automatically for all platforms via GitHub Actions when you push a version tag:
 
 ```bash
-pip install pyinstaller
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+This triggers the workflow at `.github/workflows/build.yml`, which builds Windows, macOS, and Linux executables and attaches them to the GitHub Release.
+
+### Building locally
+
+To build for your current platform manually:
+
+```bash
+pip install pyinstaller customtkinter watchdog
 cd modupdater
 python build_exe.py
 ```
 
-This creates `dist/SMAPIModUpdater/` containing the executable, and a zip file ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the zip.
+On **Linux**, you also need: `sudo apt install python3-tk` (or your distro's equivalent).
+
+This creates `dist/SMAPIModUpdater/` containing the executable, and a platform-appropriate archive ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the archive.
+
+> **Note:** PyInstaller cannot cross-compile. A Linux binary must be built on Linux, a macOS binary on macOS. The GitHub Actions workflow handles this automatically.
 
 ## Changelog
 
@@ -224,6 +268,11 @@ This creates `dist/SMAPIModUpdater/` containing the executable, and a zip file r
 - Existing download scan
 - Comment-tolerant manifest parsing
 - Cross-platform support (Windows exe, Mac/Linux from source)
+
+### v1.2.0
+- **macOS and Linux standalone executables** — no Python installation required
+- **GitHub Actions CI** — automated cross-platform builds on tagged releases
+- **Cross-platform build script** — `build_exe.py` now detects the OS and produces the correct archive format
 
 ## Known Limitations
 

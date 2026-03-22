@@ -1,7 +1,7 @@
-# build_exe.py - Build the Windows executable and Nexus-ready zip
+# build_exe.py - Build a standalone executable and Nexus-ready archive
 """
-Builds the SMAPI Mod Updater into a standalone Windows executable
-and packages it into a zip file ready for Nexus Mods upload.
+Builds the SMAPI Mod Updater into a standalone executable for the
+current platform and packages it into an archive ready for Nexus Mods.
 
 Run from the repo root:
     python build_exe.py
@@ -9,15 +9,18 @@ Run from the repo root:
 Requires PyInstaller:
     pip install pyinstaller
 
-Output:
-    dist/SMAPIModUpdater/           - The built executable and dependencies
-    dist/SMAPI Mod Updater x.x.x.zip  - Nexus-ready zip file
+Output (varies by platform):
+    dist/SMAPIModUpdater/                          - The built executable and dependencies
+    dist/SMAPI Mod Updater x.x.x (platform).zip   - Nexus-ready archive (Windows/macOS)
+    dist/SMAPI Mod Updater x.x.x (platform).tar.gz - Nexus-ready archive (Linux)
 """
 
 import json
+import platform
 import shutil
 import subprocess
 import sys
+import tarfile
 from pathlib import Path
 
 
@@ -42,13 +45,31 @@ NEXUS_MANIFEST = {
 }
 
 
+def get_platform_tag() -> str:
+    """Return a short platform tag for archive naming."""
+    system = platform.system().lower()
+    if system == "darwin":
+        return "macOS"
+    elif system == "linux":
+        return "Linux"
+    return "Windows"
+
+
+def get_exe_filename() -> str:
+    """Return the executable filename for the current platform."""
+    if platform.system().lower() == "windows":
+        return EXE_NAME + ".exe"
+    return EXE_NAME
+
+
 def main():
     repo_root = Path(__file__).parent
     dist_dir = repo_root / "dist"
     build_dir = repo_root / "build"
     spec_file = repo_root / "SMAPIModUpdater.spec"
+    platform_tag = get_platform_tag()
 
-    print(f"Building {APP_NAME} v{VERSION}...")
+    print(f"Building {APP_NAME} v{VERSION} for {platform_tag}...")
     print()
 
     # ─── Step 1: Run PyInstaller ──────────────────────────────────
@@ -99,22 +120,37 @@ def main():
         print("  WARNING: README.md not found in repo root, skipping.")
     print()
 
-    # ─── Step 4: Create Nexus zip ─────────────────────────────────
-    print("Step 4: Creating Nexus-ready zip...")
+    # ─── Step 4: Set executable permission (Linux/macOS) ─────────
+    if platform_tag != "Windows":
+        print("Step 4: Setting executable permission...")
+        exe_path = exe_dir / EXE_NAME
+        if exe_path.is_file():
+            exe_path.chmod(exe_path.stat().st_mode | 0o755)
+            print(f"  chmod +x: {exe_path}")
+        print()
 
-    zip_name = f"SMAPI Mod Updater {VERSION}"
-    zip_path = dist_dir / zip_name
+    # ─── Step 5: Create Nexus archive ─────────────────────────────
+    print(f"Step {'5' if platform_tag != 'Windows' else '4'}: Creating Nexus-ready archive...")
 
-    shutil.make_archive(
-        str(zip_path),
-        "zip",
-        root_dir=str(dist_dir),
-        base_dir=EXE_NAME,
-    )
+    archive_base = f"SMAPI Mod Updater {VERSION} ({platform_tag})"
 
-    final_zip = dist_dir / f"{zip_name}.zip"
-    size_mb = final_zip.stat().st_size / (1024 * 1024)
-    print(f"  Created: {final_zip}")
+    if platform_tag == "Linux":
+        # Linux: use tar.gz to preserve executable permissions
+        archive_path = dist_dir / f"{archive_base}.tar.gz"
+        with tarfile.open(str(archive_path), "w:gz") as tar:
+            tar.add(str(exe_dir), arcname=EXE_NAME)
+    else:
+        # Windows and macOS: use zip
+        shutil.make_archive(
+            str(dist_dir / archive_base),
+            "zip",
+            root_dir=str(dist_dir),
+            base_dir=EXE_NAME,
+        )
+        archive_path = dist_dir / f"{archive_base}.zip"
+
+    size_mb = archive_path.stat().st_size / (1024 * 1024)
+    print(f"  Created: {archive_path}")
     print(f"  Size: {size_mb:.1f} MB")
     print()
 
@@ -122,11 +158,20 @@ def main():
     print("=" * 50)
     print(f"Build complete!")
     print()
-    print(f"Executable:  {exe_dir / (EXE_NAME + '.exe')}")
-    print(f"Nexus zip:   {final_zip}")
+    print(f"Executable:  {exe_dir / get_exe_filename()}")
+    print(f"Archive:     {archive_path}")
     print()
-    print("To test: double-click SMAPIModUpdater.exe in the dist folder.")
-    print("To upload: use the zip file on Nexus Mods.")
+
+    if platform_tag == "Windows":
+        print("To test: double-click SMAPIModUpdater.exe in the dist folder.")
+    elif platform_tag == "macOS":
+        print("To test: ./dist/SMAPIModUpdater/SMAPIModUpdater")
+        print("Note: macOS users may need to right-click → Open or run")
+        print("  xattr -cr dist/SMAPIModUpdater/  to bypass Gatekeeper.")
+    else:
+        print("To test: ./dist/SMAPIModUpdater/SMAPIModUpdater")
+
+    print("To upload: use the archive file on Nexus Mods.")
 
 
 if __name__ == "__main__":
