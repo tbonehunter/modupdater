@@ -59,15 +59,16 @@ No Python installation required.
 
 **Step 1:** Download the latest archive for your platform from the [GitHub Releases page](https://github.com/tbonehunter/modupdater/releases):
 - **macOS** — `SMAPI Mod Updater x.x.x (macOS).zip`
-- **Linux** — `SMAPI Mod Updater x.x.x (Linux).tar.gz`
+- **Linux** — `SMAPI Mod Updater x.x.x (Linux).zip`
 
 **Step 2:** Extract the archive:
 - **macOS** — double-click the zip in Finder, or: `unzip "SMAPI Mod Updater*.zip"`
-- **Linux** — `tar xzf "SMAPI Mod Updater*.tar.gz"`
+- **Linux** — `unzip "SMAPI Mod Updater*.zip"`
 
 **Step 3:** Run the executable:
 ```bash
 cd SMAPIModUpdater
+chmod +x SMAPIModUpdater
 ./SMAPIModUpdater
 ```
 

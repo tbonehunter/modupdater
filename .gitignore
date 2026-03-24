@@ -4,15 +4,24 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-dist/SMAPIModUpdater/
 build/
 *.egg
+
+# Build output (keep dist/*.zip for distribution, ignore intermediates)
+dist/SMAPIModUpdater/
+
+# GitHub Actions (not used)
+.github/
+
+# Local-only directories
+.DoNotUse/
 
 # Config (user-specific paths)
 smapi_updater_config.json
 
 # Session log (regenerated each run)
 smapi_updater_log.txt
+SMAPI-latest.txt
 
 # IDE
 .vscode/

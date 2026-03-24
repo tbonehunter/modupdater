@@ -26,6 +26,7 @@ Layout:
 
 import threading
 from pathlib import Path
+import tkinter as tk
 from tkinter import filedialog
 from typing import Optional
 
@@ -123,7 +124,11 @@ class SettingsDialog(ctk.CTkToplevel):
         self.geometry("600x480")
         self.minsize(500, 380)
         self.transient(parent)
-        self.grab_set()
+        self.wait_visibility()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass  # Window not viewable — skip modal grab
 
         self._config = config
         self._on_save = on_save

@@ -11,8 +11,7 @@ Requires PyInstaller:
 
 Output (varies by platform):
     dist/SMAPIModUpdater/                          - The built executable and dependencies
-    dist/SMAPI Mod Updater x.x.x (platform).zip   - Nexus-ready archive (Windows/macOS)
-    dist/SMAPI Mod Updater x.x.x (platform).tar.gz - Nexus-ready archive (Linux)
+    dist/SMAPI Mod Updater x.x.x (platform).zip   - Nexus-ready archive
 """
 
 import json
@@ -20,7 +19,6 @@ import platform
 import shutil
 import subprocess
 import sys
-import tarfile
 from pathlib import Path
 
 
@@ -28,18 +26,19 @@ from pathlib import Path
 
 APP_NAME = "SMAPI Mod Updater"
 EXE_NAME = "SMAPIModUpdater"
-VERSION = "1.0.0"
+VERSION = "1.1.2"
 
 # Nexus manifest for the tool (NOT a SMAPI mod manifest — this just
 # identifies it on Nexus and in mod managers)
 NEXUS_MANIFEST = {
     "Name": APP_NAME,
-    "Author": "Nortek LLC",
+    "Author": "tbonehunter",
     "Version": VERSION,
     "Description": (
         "A GUI tool that streamlines updating Stardew Valley SMAPI mods "
         "from Nexus Mods. Parses SMAPI's update log, opens download pages, "
-        "and automatically installs downloaded updates."
+        "and automatically installs downloaded updates. See README.md for "
+        "installation and usage"
     ),
     "UniqueID": "tbonehunter.SMAPIModUpdater",
 }
@@ -134,20 +133,13 @@ def main():
 
     archive_base = f"SMAPI Mod Updater {VERSION} ({platform_tag})"
 
-    if platform_tag == "Linux":
-        # Linux: use tar.gz to preserve executable permissions
-        archive_path = dist_dir / f"{archive_base}.tar.gz"
-        with tarfile.open(str(archive_path), "w:gz") as tar:
-            tar.add(str(exe_dir), arcname=EXE_NAME)
-    else:
-        # Windows and macOS: use zip
-        shutil.make_archive(
-            str(dist_dir / archive_base),
-            "zip",
-            root_dir=str(dist_dir),
-            base_dir=EXE_NAME,
-        )
-        archive_path = dist_dir / f"{archive_base}.zip"
+    shutil.make_archive(
+        str(dist_dir / archive_base),
+        "zip",
+        root_dir=str(dist_dir),
+        base_dir=EXE_NAME,
+    )
+    archive_path = dist_dir / f"{archive_base}.zip"
 
     size_mb = archive_path.stat().st_size / (1024 * 1024)
     print(f"  Created: {archive_path}")
