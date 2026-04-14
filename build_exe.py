@@ -26,7 +26,7 @@ from pathlib import Path
 
 APP_NAME = "SMAPI Mod Updater"
 EXE_NAME = "SMAPIModUpdater"
-VERSION = "1.1.2"
+VERSION = "1.2.0"
 
 # Nexus manifest for the tool (NOT a SMAPI mod manifest — this just
 # identifies it on Nexus and in mod managers)

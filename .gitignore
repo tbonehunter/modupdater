@@ -23,6 +23,9 @@ smapi_updater_config.json
 smapi_updater_log.txt
 SMAPI-latest.txt
 
+# Virtual environments
+.venv/
+
 # IDE
 .vscode/
 .idea/

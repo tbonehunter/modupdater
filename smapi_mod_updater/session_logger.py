@@ -5,6 +5,9 @@ Overwrites on each new session (does not append across runs).
 
 Also supports a GUI callback so log messages appear in both the file
 and the GUI's session log display simultaneously.
+
+Tracks issues (skipped/failed mods) separately so the GUI can present
+a clear summary to the user via the "View Issues" dialog.
 """
 
 import sys
@@ -25,6 +28,7 @@ class SessionLogger:
         logger.info("Updated Automate from 2.5.0 to 2.6.0")
         logger.warning("Version mismatch for SpaceCore")
         logger.error("Failed to extract archive")
+        logger.add_issue("SpaceCore", "Version mismatch", "...")
     """
 
     def __init__(self, log_dir: Optional[Path] = None):
@@ -43,6 +47,8 @@ class SessionLogger:
 
         self._log_path = log_dir / LOG_FILENAME
         self._gui_callback: Optional[Callable[[str], None]] = None
+        self._issue_callback: Optional[Callable[[], None]] = None
+        self._issues: list[dict] = []
         self._start_session()
 
     def _start_session(self):
@@ -66,6 +72,13 @@ class SessionLogger:
         The callback receives the formatted message string.
         """
         self._gui_callback = callback
+
+    def set_issue_callback(self, callback: Callable[[], None]):
+        """
+        Register a callback to notify the GUI when a new issue is added.
+        Called after each add_issue() so the GUI can update the button.
+        """
+        self._issue_callback = callback
 
     def _write(self, level: str, message: str):
         """Write a log entry to file and GUI."""
@@ -104,3 +117,44 @@ class SessionLogger:
     def log_path(self) -> Path:
         """Return the path to the current log file."""
         return self._log_path
+
+    # ─── Issue Tracking ───────────────────────────────────────────
+
+    def add_issue(self, mod_name: str, reason: str, detail: str):
+        """
+        Record an issue for the View Issues summary.
+
+        Args:
+            mod_name: Display name of the mod (e.g. "Immersive Farm 2 Update")
+            reason:   Short category (e.g. "Version mismatch", "No manifest",
+                      "Backup failed", "Install failed")
+            detail:   Human-readable explanation of what happened
+        """
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self._issues.append({
+            "time": timestamp,
+            "mod": mod_name,
+            "reason": reason,
+            "detail": detail,
+        })
+        # Also log to file
+        self._write("ISSUE", f"{mod_name}: {detail}")
+        # Notify GUI so it can update the button count
+        if self._issue_callback:
+            self._issue_callback()
+
+    @property
+    def issues(self) -> list[dict]:
+        """Return all recorded issues for the current session."""
+        return list(self._issues)
+
+    @property
+    def issue_count(self) -> int:
+        """Return the number of issues recorded this session."""
+        return len(self._issues)
+
+    def clear_issues(self):
+        """Clear all recorded issues (e.g. on a fresh reload)."""
+        self._issues.clear()
+        if self._issue_callback:
+            self._issue_callback()

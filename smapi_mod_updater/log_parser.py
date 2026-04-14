@@ -1,15 +1,19 @@
 # log_parser.py - SMAPI log parser for SMAPI Mod Updater
-"""
-Phase 1: Parse SMAPI's log file to extract the list of available mod updates.
+r"""
+Parse SMAPI's log file to extract:
+  1. The Mods folder path (from the log header)
+  2. The list of available mod updates (from the ALERT section)
 
-SMAPI log lines have a timestamp and severity prefix:
+SMAPI log header contains:
+  [10:43:28 INFO  SMAPI] SMAPI 4.5.2 with Stardew Valley 1.6.15 ...
+  [10:43:28 INFO  SMAPI] Mods go here: D:\Stardew Valley\Mods
+
+SMAPI log update lines have a timestamp and severity prefix:
   [10:07:05 ALERT SMAPI] You can update 18 mods:
   [10:07:05 ALERT SMAPI]    Automate 2.6.0: https://www.nexusmods.com/stardewvalley/mods/1063 (you have 2.5.0)
   [10:07:05 ALERT SMAPI]    (CP) Stoner Valley 1.2.8: https://... (you have 1.2.3)
 
-The parser strips the bracketed prefix, then matches the mod update content.
-
-Returns a list of mod update dicts ready for the GUI checklist.
+The parser strips the bracketed prefix, then matches the content.
 """
 
 import re
@@ -49,11 +53,57 @@ _MOD_UPDATE_PATTERN = re.compile(
     r"\s+\(you have\s+([\d.][\d.a-zA-Z-]*)\)$"
 )
 
+# Matches the "Mods go here:" line in the SMAPI log header.
+# Example:
+#   [10:43:28 INFO  SMAPI] Mods go here: D:\Stardew Valley\Mods
+_MODS_PATH_PATTERN = re.compile(
+    r"Mods go here:\s*(.+)"
+)
+
 # Extract Nexus mod ID from URL like:
 #   https://www.nexusmods.com/stardewvalley/mods/1063
 _NEXUS_MOD_ID_PATTERN = re.compile(
     r"nexusmods\.com/stardewvalley/mods/(\d+)"
 )
+
+
+def parse_smapi_log_paths(log_path: Path) -> dict:
+    """
+    Parse the SMAPI log header to extract the Mods folder path.
+
+    The header line "Mods go here: <path>" appears in the first
+    ~5 lines of every SMAPI log. The game folder is the parent
+    of the Mods folder.
+
+    Returns a dict with:
+      - mods_path:  Path or None
+      - game_path:  Path or None
+    """
+    result = {"mods_path": None, "game_path": None}
+
+    if not log_path.is_file():
+        return result
+
+    try:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
+            # Only need the first few lines — "Mods go here" is line 2
+            for _ in range(20):
+                line = f.readline()
+                if not line:
+                    break
+                content = _strip_smapi_prefix(line)
+                if content is None:
+                    continue
+                match = _MODS_PATH_PATTERN.match(content.strip())
+                if match:
+                    mods = Path(match.group(1).strip())
+                    result["mods_path"] = mods
+                    result["game_path"] = mods.parent
+                    break
+    except OSError:
+        pass
+
+    return result
 
 
 def _extract_nexus_mod_id(url: str) -> Optional[int]:

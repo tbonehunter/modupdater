@@ -1,5 +1,5 @@
 # gui.py - SMAPI Mod Updater GUI
-"""
+r"""
 Main GUI window for the SMAPI Mod Updater.
 Uses CustomTkinter for a modern cross-platform interface.
 
@@ -7,7 +7,7 @@ Layout:
   ┌─────────────────────────────────────────┐
   │  SMAPI Mod Updater          [Settings]  │
   │─────────────────────────────────────────│
-  │  Game: D:\Stardew Valley  [▼]  [Reload] │
+  │  Mods: D:\Stardew Valley\Mods  [Reload] │
   │  Status: Found 18 mods to update        │
   │─────────────────────────────────────────│
   │  ☑ Automate         2.5.0 → 2.6.0      │
@@ -19,7 +19,7 @@ Layout:
   │  [Select All] [Deselect All]            │
   │  [Open Download Pages]  [Watch & Install]│
   │─────────────────────────────────────────│
-  │  Session Log:                           │
+  │  Session Log:          [View Issues (2)] │
   │  > Ready.                               │
   └─────────────────────────────────────────┘
 """
@@ -33,14 +33,12 @@ from typing import Optional
 import customtkinter as ctk
 
 from config_manager import (
-    add_game_instance,
-    get_active_instance,
     get_downloads_path,
     get_log_path,
     get_mods_path,
     load_config,
+    refresh_mods_path,
     save_config,
-    set_active_instance,
     update_downloads_path,
 )
 from log_parser import parse_smapi_log
@@ -87,7 +85,6 @@ class ModCheckboxRow(ctk.CTkFrame):
             text=version_text,
             anchor="e",
             font=ctk.CTkFont(size=12, family="Courier"),
-            text_color="gray",
         )
         self.version_label.grid(row=0, column=2, padx=(8, 4), pady=2, sticky="e")
 
@@ -113,6 +110,62 @@ class ModCheckboxRow(ctk.CTkFrame):
         }
         text, color = indicators.get(status, ("", "gray"))
         self.status_label.configure(text=text, text_color=color)
+
+
+class IssuesDialog(ctk.CTkToplevel):
+    """Dialog showing a summary of issues encountered during the session."""
+
+    def __init__(self, parent, issues: list[dict]):
+        super().__init__(parent)
+        self.title("Session Issues")
+        self.geometry("620x400")
+        self.minsize(480, 300)
+        self.transient(parent)
+        self.wait_visibility()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass  # Window not viewable — skip modal grab
+
+        # Close button at bottom
+        ctk.CTkButton(self, text="Close", width=100,
+                       command=self.destroy).pack(side="bottom", pady=(8, 16))
+
+        # Header
+        count = len(issues)
+        ctk.CTkLabel(
+            self,
+            text=f"{count} issue{'s' if count != 1 else ''} this session",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            anchor="w",
+        ).pack(fill="x", padx=16, pady=(12, 4))
+
+        # Scrollable issue list
+        content = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=8, pady=(4, 4))
+
+        if not issues:
+            ctk.CTkLabel(content, text="No issues to report.",
+                          text_color="gray").pack(padx=16, pady=8)
+        else:
+            for issue in issues:
+                frame = ctk.CTkFrame(content)
+                frame.pack(fill="x", padx=8, pady=4)
+
+                # Mod name and reason on one line
+                header_text = f"{issue['mod']}  —  {issue['reason']}"
+                ctk.CTkLabel(
+                    frame, text=header_text, anchor="w",
+                    font=ctk.CTkFont(size=13, weight="bold"),
+                ).pack(fill="x", padx=12, pady=(8, 2))
+
+                # Detail text
+                ctk.CTkLabel(
+                    frame, text=issue["detail"], anchor="w",
+                    font=ctk.CTkFont(size=11),
+                    wraplength=540,
+                    justify="left",
+                ).pack(fill="x", padx=12, pady=(0, 8))
 
 
 class SettingsDialog(ctk.CTkToplevel):
@@ -176,53 +229,18 @@ class SettingsDialog(ctk.CTkToplevel):
         ctk.CTkButton(dl_frame, text="Browse", width=70,
                        command=self._browse_downloads).grid(row=0, column=1)
 
-        # Add game instance
-        ctk.CTkLabel(content, text="Add Game Instance:", anchor="w",
+        # Mods folder (read from SMAPI log, shown for reference)
+        mods = config.get("mods_path", "") or "(not detected — run SMAPI once)"
+        ctk.CTkLabel(content, text="Mods Folder (from SMAPI log):", anchor="w",
                       font=ctk.CTkFont(size=13)).pack(fill="x", padx=16, pady=(8, 2))
-
-        add_frame = ctk.CTkFrame(content, fg_color="transparent")
-        add_frame.pack(fill="x", padx=16, pady=(0, 8))
-        add_frame.grid_columnconfigure(0, weight=1)
-
-        self.add_path_var = ctk.StringVar(value="")
-        ctk.CTkEntry(add_frame, textvariable=self.add_path_var,
-                      placeholder_text="Path to Stardew Valley game folder",
-                      font=ctk.CTkFont(size=12)).grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        ctk.CTkButton(add_frame, text="Browse", width=70,
-                       command=self._browse_game).grid(row=0, column=1)
-
-        self.add_label_var = ctk.StringVar(value="")
-        ctk.CTkEntry(add_frame, textvariable=self.add_label_var,
-                      placeholder_text="Label (optional, e.g. 'Modded' or 'Vanilla')",
-                      font=ctk.CTkFont(size=12)).grid(row=1, column=0, columnspan=2,
-                                                        sticky="ew", pady=(4, 0))
-
-        # Current instances list
-        ctk.CTkLabel(content, text="Known Game Instances:", anchor="w",
-                      font=ctk.CTkFont(size=13)).pack(fill="x", padx=16, pady=(8, 2))
-
-        instances = config.get("game_instances", [])
-        if instances:
-            for i, inst in enumerate(instances):
-                label = inst.get("label", "Unknown")
-                path = inst.get("game_path", "?")
-                text = f"  [{i}] {label}: {path}"
-                ctk.CTkLabel(content, text=text, anchor="w",
-                              font=ctk.CTkFont(size=11, family="Courier"),
-                              text_color="gray").pack(fill="x", padx=16)
-        else:
-            ctk.CTkLabel(content, text="  (none detected)", anchor="w",
-                          text_color="gray").pack(fill="x", padx=16)
+        ctk.CTkLabel(content, text=f"  {mods}", anchor="w",
+                      font=ctk.CTkFont(size=11, family="Courier"),
+                      text_color="gray").pack(fill="x", padx=16, pady=(0, 8))
 
     def _browse_downloads(self):
         path = filedialog.askdirectory(title="Select Downloads Folder")
         if path:
             self.dl_var.set(path)
-
-    def _browse_game(self):
-        path = filedialog.askdirectory(title="Select Stardew Valley Game Folder")
-        if path:
-            self.add_path_var.set(path)
 
     def _browse_log(self):
         path = filedialog.askopenfilename(
@@ -237,17 +255,13 @@ class SettingsDialog(ctk.CTkToplevel):
         log = self.log_var.get().strip()
         if log:
             self._config["smapi_log_path"] = log
+            # Re-derive mods path from the (possibly new) log file
+            refresh_mods_path(self._config)
 
         # Update downloads path
         dl = self.dl_var.get().strip()
         if dl:
             update_downloads_path(self._config, dl)
-
-        # Add new game instance if specified
-        game_path = self.add_path_var.get().strip()
-        if game_path:
-            label = self.add_label_var.get().strip() or None
-            add_game_instance(self._config, game_path, label)
 
         save_config(self._config)
 
@@ -284,7 +298,7 @@ class SMAPIModUpdaterGUI(ctk.CTk):
 
         # --- Build the UI ---
         self._build_header()
-        self._build_instance_selector()
+        self._build_mods_info()
         self._build_status_bar()
         self._build_mod_list()
         self._build_selection_buttons()
@@ -293,6 +307,7 @@ class SMAPIModUpdaterGUI(ctk.CTk):
 
         # Connect session logger to GUI log display
         self._logger.set_gui_callback(self._log)
+        self._logger.set_issue_callback(self._on_issues_changed)
 
         # --- Initial load ---
         self._load_smapi_log()
@@ -326,43 +341,30 @@ class SMAPIModUpdaterGUI(ctk.CTk):
         )
         settings_btn.grid(row=0, column=1, sticky="e")
 
-    def _build_instance_selector(self):
-        """Game instance dropdown and reload button."""
-        inst_frame = ctk.CTkFrame(self, fg_color="transparent")
-        inst_frame.pack(fill="x", padx=16, pady=(4, 0))
-        inst_frame.grid_columnconfigure(1, weight=1)
+    def _build_mods_info(self):
+        """Mods folder path display and reload button."""
+        info_frame = ctk.CTkFrame(self, fg_color="transparent")
+        info_frame.pack(fill="x", padx=16, pady=(4, 0))
+        info_frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(
-            inst_frame, text="Game:", anchor="w",
+            info_frame, text="Mods:", anchor="w",
             font=ctk.CTkFont(size=12),
         ).grid(row=0, column=0, padx=(0, 8), sticky="w")
 
-        # Build dropdown values from config
-        instances = self._config.get("game_instances", [])
-        if instances:
-            values = [
-                f"{inst.get('label', 'Unknown')} — {inst.get('game_path', '?')}"
-                for inst in instances
-            ]
-        else:
-            values = ["(no game instances found)"]
-
-        active_index = self._config.get("active_instance_index", 0)
-        initial_value = values[min(active_index, len(values) - 1)]
-
-        self._instance_var = ctk.StringVar(value=initial_value)
-        self._instance_dropdown = ctk.CTkOptionMenu(
-            inst_frame,
-            variable=self._instance_var,
-            values=values,
+        mods_path = get_mods_path(self._config)
+        mods_text = str(mods_path) if mods_path else "(not detected — run SMAPI once)"
+        self._mods_path_var = ctk.StringVar(value=mods_text)
+        ctk.CTkLabel(
+            info_frame,
+            textvariable=self._mods_path_var,
+            anchor="w",
             font=ctk.CTkFont(size=12),
-            command=self._on_instance_changed,
-            dynamic_resizing=False,
-        )
-        self._instance_dropdown.grid(row=0, column=1, sticky="ew", padx=(0, 8))
+            text_color="gray",
+        ).grid(row=0, column=1, sticky="ew", padx=(0, 8))
 
         reload_btn = ctk.CTkButton(
-            inst_frame,
+            info_frame,
             text="Reload",
             width=70,
             height=28,
@@ -444,14 +446,28 @@ class SMAPIModUpdaterGUI(ctk.CTk):
         self.watch_install_btn.grid(row=0, column=1, padx=(6, 0), sticky="ew")
 
     def _build_log_area(self):
-        """Session log display at the bottom."""
-        log_label = ctk.CTkLabel(
-            self,
+        """Session log display at the bottom with View Issues button."""
+        log_header = ctk.CTkFrame(self, fg_color="transparent")
+        log_header.pack(fill="x", padx=20, pady=(4, 0))
+        log_header.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            log_header,
             text="Session Log",
             font=ctk.CTkFont(size=12, weight="bold"),
             anchor="w",
+        ).grid(row=0, column=0, sticky="w")
+
+        self._issues_btn = ctk.CTkButton(
+            log_header,
+            text="View Issues",
+            width=100,
+            height=24,
+            font=ctk.CTkFont(size=11),
+            state="disabled",
+            command=self._on_view_issues,
         )
-        log_label.pack(fill="x", padx=20, pady=(4, 0))
+        self._issues_btn.grid(row=0, column=1, sticky="e")
 
         self.log_textbox = ctk.CTkTextbox(
             self,
@@ -537,42 +553,43 @@ class SMAPIModUpdaterGUI(ctk.CTk):
             # Window already destroyed
             pass
 
-    # ─── Instance Selector ────────────────────────────────────────
+    def _on_issues_changed(self):
+        """Called when the issue count changes — update the button state."""
+        def _update():
+            count = self._logger.issue_count
+            if count > 0:
+                self._issues_btn.configure(
+                    text=f"View Issues ({count})",
+                    state="normal",
+                )
+            else:
+                self._issues_btn.configure(
+                    text="View Issues",
+                    state="disabled",
+                )
 
-    def _on_instance_changed(self, selection: str):
-        """Handle game instance dropdown change."""
-        instances = self._config.get("game_instances", [])
-        # Find the index of the selected instance
-        values = [
-            f"{inst.get('label', 'Unknown')} — {inst.get('game_path', '?')}"
-            for inst in instances
-        ]
-        if selection in values:
-            index = values.index(selection)
-            set_active_instance(self._config, index)
-            save_config(self._config)
-            self._logger.info(f"Switched to game instance: {instances[index].get('label', '?')}")
-            self._load_smapi_log()
+        try:
+            self.after(0, _update)
+        except RuntimeError:
+            pass
+
+    def _on_view_issues(self):
+        """Open the issues summary dialog."""
+        IssuesDialog(self, self._logger.issues)
 
     def _on_reload(self):
-        """Reload the SMAPI log for the current instance."""
+        """Reload the SMAPI log and refresh the Mods path."""
         self._logger.info("Reloading SMAPI log...")
+        refresh_mods_path(self._config)
+        save_config(self._config)
+        self._refresh_mods_display()
         self._load_smapi_log()
 
-    def _refresh_instance_dropdown(self):
-        """Rebuild the instance dropdown after config changes."""
-        instances = self._config.get("game_instances", [])
-        if instances:
-            values = [
-                f"{inst.get('label', 'Unknown')} — {inst.get('game_path', '?')}"
-                for inst in instances
-            ]
-        else:
-            values = ["(no game instances found)"]
-
-        self._instance_dropdown.configure(values=values)
-        active_index = self._config.get("active_instance_index", 0)
-        self._instance_var.set(values[min(active_index, len(values) - 1)])
+    def _refresh_mods_display(self):
+        """Update the Mods path label from the current config."""
+        mods_path = get_mods_path(self._config)
+        text = str(mods_path) if mods_path else "(not detected — run SMAPI once)"
+        self._mods_path_var.set(text)
 
     # ─── Button Handlers ──────────────────────────────────────────
 
@@ -583,7 +600,7 @@ class SMAPIModUpdaterGUI(ctk.CTk):
     def _on_settings_saved(self):
         """Called after settings dialog saves successfully."""
         self._config = load_config()
-        self._refresh_instance_dropdown()
+        self._refresh_mods_display()
         self._logger.info("Settings saved.")
         self._load_smapi_log()
 
@@ -681,6 +698,10 @@ class SMAPIModUpdaterGUI(ctk.CTk):
             """All mods installed."""
             self.after(0, self._on_watch_complete)
 
+        def _on_issue(mod_name, reason, detail):
+            """Record an issue for the View Issues dialog."""
+            self._logger.add_issue(mod_name, reason, detail)
+
         self._watcher = DownloadWatcher(
             downloads_path=downloads_path,
             mods_path=mods_path,
@@ -689,6 +710,7 @@ class SMAPIModUpdaterGUI(ctk.CTk):
             on_mod_error=_on_mod_error,
             on_status=_on_status,
             on_complete=_on_complete,
+            on_issue=_on_issue,
         )
         self._watcher.start()
 

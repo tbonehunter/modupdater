@@ -171,6 +171,7 @@ class DownloadWatcher:
         on_mod_error: Optional[Callable[[dict, str], None]] = None,
         on_status: Optional[Callable[[str], None]] = None,
         on_complete: Optional[Callable[[], None]] = None,
+        on_issue: Optional[Callable[[str, str, str], None]] = None,
     ):
         """
         Args:
@@ -181,6 +182,7 @@ class DownloadWatcher:
             on_mod_error:     Callback(mod_dict, error_message) on failure
             on_status:        Callback(message) for general status updates
             on_complete:      Callback() when all mods have been installed
+            on_issue:         Callback(mod_name, reason, detail) to report issues
         """
         self._downloads_path = downloads_path
         self._mods_path = mods_path
@@ -189,6 +191,7 @@ class DownloadWatcher:
         self._on_mod_error = on_mod_error
         self._on_status = on_status
         self._on_complete = on_complete
+        self._on_issue = on_issue
 
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -451,6 +454,15 @@ class DownloadWatcher:
                     f"Skipped {archive_path.name} — version {mod_version} "
                     f"doesn't match expected {expected_version}"
                 )
+                self._report_issue(
+                    mod_name,
+                    "Version mismatch",
+                    f"Downloaded file '{archive_path.name}' contains "
+                    f"version {mod_version}, but SMAPI expected version "
+                    f"{expected_version}. This usually means the mod author "
+                    f"updated the file on Nexus without bumping the version "
+                    f"in manifest.json. You can install this mod manually."
+                )
                 return
             else:
                 self._status(
@@ -494,6 +506,13 @@ class DownloadWatcher:
                     matched_mod,
                     f"Failed to back up {installed_folder.name}. Skipping install."
                 )
+                self._report_issue(
+                    mod_name,
+                    "Backup failed",
+                    f"Could not create a backup of '{installed_folder.name}' "
+                    f"before updating. The install was skipped to avoid data "
+                    f"loss. Check that the Mods folder is writable."
+                )
                 return
 
         # Step 6: Extract all sub-mods
@@ -516,6 +535,15 @@ class DownloadWatcher:
             else:
                 self._status(f"  FAILED to install {sub_name}")
                 all_success = False
+
+        if not all_success:
+            self._report_issue(
+                mod_name,
+                "Install failed",
+                f"One or more sub-mods in '{archive_path.name}' failed to "
+                f"extract to the Mods folder. Check that the Mods folder "
+                f"is writable and not locked by another program."
+            )
 
         if all_success and results:
             self._matcher.mark_installed(matched_mod)
@@ -555,3 +583,8 @@ class DownloadWatcher:
         if self._on_mod_error:
             self._on_mod_error(mod, message)
         self._status(f"ERROR: {message}")
+
+    def _report_issue(self, mod_name: str, reason: str, detail: str):
+        """Report an issue to the session logger for the View Issues dialog."""
+        if self._on_issue:
+            self._on_issue(mod_name, reason, detail)
