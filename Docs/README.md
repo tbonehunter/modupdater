@@ -21,8 +21,8 @@ You still click "Slow Download" on each Nexus page (Nexus Premium not required),
 
 - **Cross-platform** — works on Windows, macOS, and Linux
 - **Subfolder preservation** — if you organize mods into subfolders (e.g., `Mods/Pathoschild/Automate/`), updates are installed back into the same location at any nesting depth
-- **Auto-detects** your Stardew Valley installation, SMAPI log, Mods folder, and Downloads folder
-- **Multiple game instances** — switch between different Stardew installs via a dropdown
+- **Auto-detects** your Stardew Valley installation, SMAPI log, Mods folder, and Downloads folder — including automatic SteamOS/Proton detection for Steam Deck users
+- **Reload button** — re-reads the SMAPI log at any time, e.g. after running the game again
 - **Multi-mod archives** — handles zips containing multiple mod folders (e.g., a SMAPI mod + Content Patcher pack)
 - **Existing download scan** — finds matching mods already in your Downloads folder so you don't re-download
 - **Version verification** — only installs the expected version, skips old downloads sitting in your folder
@@ -176,13 +176,40 @@ For new mods that don't have an existing installation, they are installed at the
 
 ## Configuration
 
-On first run, the tool creates `smapi_updater_config.json` with auto-detected paths. Use the **Settings** button to:
+On first run, the tool creates `smapi_updater_config.json` with auto-detected paths. The Mods folder path is read directly from SMAPI's log (its "Mods go here:" line), so it always matches what SMAPI itself is using. Use the **Settings** button to:
 
 - Override the SMAPI log file location
 - Override the Downloads folder
-- Add game instances that weren't auto-detected
 
-The **Game** dropdown at the top switches between multiple Stardew Valley installations. The **Reload** button re-reads the SMAPI log for the current instance.
+The **Mods** bar at the top shows the detected Mods folder. Click **Reload** to re-read the SMAPI log, e.g. after running the game again.
+
+## SteamOS / Steam Deck Setup
+
+Stardew Valley on SteamOS typically runs through **Proton**, which means SMAPI (a Windows program) writes its log with a Windows-style path (e.g. `Z:\home\deck\...`) instead of a native Linux path. The updater handles this automatically:
+
+1. **Download and run the Linux build** (Option B above) in **Desktop Mode** — Game Mode sessions usually lack a working browser/display association needed for the Mods folder and "Open Download Pages" step.
+2. On launch, the tool detects SteamOS and searches your Steam library's `compatdata` folders for SMAPI's log:
+   - **Exactly one install found** — configured automatically, no action needed.
+   - **Multiple installs found** (e.g. internal storage + SD card) — a dialog lets you pick which one to use.
+   - **None found** — run the game through Steam at least once so SMAPI generates a log, then click **Reload**.
+
+### Manual setup (if auto-detection doesn't find your log)
+
+Because the game runs through a Proton layer, the log lives in a deeply nested folder:
+
+```
+/home/deck/.steam/steam/steamapps/compatdata/[UniqueAppID]/pfx/drive_c/users/steamuser/AppData/Roaming/StardewValley/ErrorLogs/
+```
+
+The `[UniqueAppID]` is specific to your instance of the modded game, and most people won't know it offhand. If you don't, you can still find the log by browsing to:
+
+```
+/home/deck/.steam/steam/steamapps/compatdata/
+```
+
+...and searching for `SMAPI-latest.txt` (or `SMAPI-crash.txt` if SMAPI didn't shut down cleanly).
+
+Once you've found the log file, right-click it and choose **Copy Location**. Then open the SMAPI Mod Updater, go to **Settings**, paste the file location into the **SMAPI Log File** field, and **Save**.
 
 ## How It Works
 
@@ -205,10 +232,13 @@ For multi-mod archives (like StonerValley which contains both a SMAPI mod and a 
 modupdater/                          ← repo root
 ├── .gitignore
 ├── pyproject.toml                   # For pip install (optional)
-├── README.md
+├── Docs/                            # README and per-platform build instructions
+│   ├── README.md
+│   ├── Windows_build.md
+│   ├── Linux_build.md
+│   └── MacOS_build.md
 ├── build_exe.py                     # Builds standalone executable (cross-platform)
 ├── SMAPIModUpdater.spec             # PyInstaller build configuration (cross-platform)
-├── .github/workflows/build.yml     # GitHub Actions: builds all platforms on release
 └── smapi_mod_updater/               ← the actual tool
     ├── __init__.py
     ├── main.py                      # Entry point
@@ -218,39 +248,31 @@ modupdater/                          ← repo root
     ├── download_watcher.py          # Watches Downloads folder, matches and installs
     ├── backup_manager.py            # Backup, extract, and restore logic
     ├── config_manager.py            # Config auto-detect, load, save
-    ├── platform_utils.py            # OS-specific path detection
+    ├── platform_utils.py            # OS-specific path detection, SteamOS/Proton detection
     ├── session_logger.py            # Per-session log file
     └── requirements.txt             # Python dependencies
 ```
 
 ## Building the Executable
 
-Builds are created automatically for all platforms via GitHub Actions when you push a version tag:
+PyInstaller cannot cross-compile — each platform's build must be run on that platform (or, for Linux, via WSL on Windows). See the platform-specific guides for exact steps:
 
-```bash
-git tag v1.2.0
-git push origin v1.2.0
-```
+- [Docs/Windows_build.md](Windows_build.md)
+- [Docs/Linux_build.md](Linux_build.md)
+- [Docs/MacOS_build.md](MacOS_build.md)
 
-This triggers the workflow at `.github/workflows/build.yml`, which builds Windows, macOS, and Linux executables and attaches them to the GitHub Release.
-
-### Building locally
-
-To build for your current platform manually:
-
-```bash
-pip install pyinstaller customtkinter watchdog
-cd modupdater
-python build_exe.py
-```
-
-On **Linux**, you also need: `sudo apt install python3-tk` (or your distro's equivalent).
+Each produces `dist/SMAPIModUpdater/` containing the executable, and a platform-appropriate zip archive ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the archive.
 
 This creates `dist/SMAPIModUpdater/` containing the executable, and a platform-appropriate archive ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the archive.
 
 > **Note:** PyInstaller cannot cross-compile. A Linux binary must be built on Linux, a macOS binary on macOS. The GitHub Actions workflow handles this automatically.
 
 ## Changelog
+
+### v1.2.1
+- **SteamOS/Proton support** — automatically translates Proton's Windows-style log paths to their real Linux location, so Steam Deck users don't need to manually resolve `Z:\` / `C:\` paths
+- **SteamOS auto-detection** — detects SteamOS on launch and scans Steam library `compatdata` folders for the SMAPI log; auto-configures it when exactly one install is found, or shows a picker dialog when there are several
+- **More reliable browser launching on Linux** — opening Nexus download pages now reports a real error instead of a false "Opened" message when the browser fails to launch (e.g. no display session)
 
 ### v1.1.0
 - **Subfolder preservation** — mods organized into subfolders are now updated in place at any nesting depth

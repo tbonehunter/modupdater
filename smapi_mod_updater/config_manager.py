@@ -21,6 +21,8 @@ from log_parser import parse_smapi_log_paths
 from platform_utils import (
     detect_downloads_folder,
     detect_smapi_log_path,
+    find_steamos_smapi_logs,
+    is_steamos,
 )
 
 # Config file lives next to the script (or next to the exe when frozen)
@@ -60,7 +62,7 @@ def _default_config() -> dict:
         config["downloads_folder"] = str(downloads)
 
     # Auto-detect SMAPI log location
-    log_path = detect_smapi_log_path()
+    log_path = detect_smapi_log_path() or _detect_steamos_smapi_log()
     if log_path:
         config["smapi_log_path"] = str(log_path)
 
@@ -70,6 +72,14 @@ def _default_config() -> dict:
             config["mods_path"] = str(paths["mods_path"])
 
     return config
+
+
+def _detect_steamos_smapi_log() -> Optional[Path]:
+    """On SteamOS, auto-select the SMAPI log only if exactly one Proton install is found."""
+    if not is_steamos():
+        return None
+    candidates = find_steamos_smapi_logs()
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def load_config() -> dict:
@@ -128,7 +138,7 @@ def _ensure_config_integrity(config: dict) -> dict:
         config["downloads_folder"] = str(downloads) if downloads else None
 
     if "smapi_log_path" not in config:
-        log_path = detect_smapi_log_path()
+        log_path = detect_smapi_log_path() or _detect_steamos_smapi_log()
         config["smapi_log_path"] = str(log_path) if log_path else None
 
     if "mods_path" not in config:

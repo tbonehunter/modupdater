@@ -44,6 +44,7 @@ from config_manager import (
 from log_parser import parse_smapi_log
 from browser_launcher import open_download_pages
 from download_watcher import DownloadWatcher
+from platform_utils import find_steamos_smapi_logs, get_steam_app_name, is_steamos
 from session_logger import SessionLogger
 
 
@@ -166,6 +167,48 @@ class IssuesDialog(ctk.CTkToplevel):
                     wraplength=540,
                     justify="left",
                 ).pack(fill="x", padx=12, pady=(0, 8))
+
+
+class SteamOSLogPickerDialog(ctk.CTkToplevel):
+    """Shown when multiple Proton SMAPI logs are found, so the user can pick the right install."""
+
+    def __init__(self, parent, candidates: list[Path], on_select):
+        super().__init__(parent)
+        self.title("Select Stardew Valley Install")
+        self.geometry("520x360")
+        self.minsize(420, 280)
+        self.transient(parent)
+        self.wait_visibility()
+        try:
+            self.grab_set()
+        except tk.TclError:
+            pass  # Window not viewable — skip modal grab
+
+        self._on_select = on_select
+
+        ctk.CTkLabel(
+            self,
+            text="SteamOS detected multiple Stardew Valley installs.\nSelect the one you want to update:",
+            justify="left", anchor="w",
+            font=ctk.CTkFont(size=13),
+        ).pack(fill="x", padx=16, pady=(16, 8))
+
+        list_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        list_frame.pack(fill="both", expand=True, padx=16, pady=(0, 8))
+
+        for log_path in candidates:
+            name = get_steam_app_name(log_path) or str(log_path)
+            ctk.CTkButton(
+                list_frame, text=name, anchor="w",
+                command=lambda p=log_path: self._select(p),
+            ).pack(fill="x", pady=2)
+
+        ctk.CTkButton(self, text="Cancel", width=100,
+                       command=self.destroy).pack(pady=(0, 16))
+
+    def _select(self, log_path: Path):
+        self._on_select(log_path)
+        self.destroy()
 
 
 class SettingsDialog(ctk.CTkToplevel):
@@ -310,6 +353,7 @@ class SMAPIModUpdaterGUI(ctk.CTk):
         self._logger.set_issue_callback(self._on_issues_changed)
 
         # --- Initial load ---
+        self._check_steamos()
         self._load_smapi_log()
 
         # --- Clean shutdown ---
@@ -517,6 +561,42 @@ class SMAPIModUpdaterGUI(ctk.CTk):
         return None
 
     # ─── Log Loading ──────────────────────────────────────────────
+
+    def _check_steamos(self):
+        """Announce SteamOS, and auto-configure or guide the user if the log isn't set yet."""
+        if not is_steamos():
+            return
+
+        self._logger.info("SteamOS detected.")
+
+        log_path = get_log_path(self._config)
+        if log_path and log_path.is_file():
+            return  # Already configured and valid
+
+        candidates = find_steamos_smapi_logs()
+
+        if len(candidates) == 1:
+            self._config["smapi_log_path"] = str(candidates[0])
+            refresh_mods_path(self._config)
+            save_config(self._config)
+            self._refresh_mods_display()
+            self._logger.success(f"SMAPI log found automatically: {candidates[0]}")
+        elif len(candidates) == 0:
+            self._logger.warning(
+                "Couldn't find your SMAPI log automatically. Run the game once through "
+                "Steam, then click Reload — or open Settings to browse for it manually."
+            )
+        else:
+            SteamOSLogPickerDialog(self, candidates, on_select=self._on_steamos_log_selected)
+
+    def _on_steamos_log_selected(self, log_path: Path):
+        """Called when the user picks a Proton SMAPI log from the SteamOS picker dialog."""
+        self._config["smapi_log_path"] = str(log_path)
+        refresh_mods_path(self._config)
+        save_config(self._config)
+        self._refresh_mods_display()
+        self._logger.success(f"SMAPI log set: {log_path}")
+        self._load_smapi_log()
 
     def _load_smapi_log(self):
         """Parse the SMAPI log for the active game instance and populate the list."""

@@ -60,6 +60,11 @@ _MODS_PATH_PATTERN = re.compile(
     r"Mods go here:\s*(.+)"
 )
 
+# Matches a Windows-style drive-letter path, e.g. "Z:\home\deck\..." or "C:/users/...".
+# SMAPI writes paths like this when the game runs under Proton/Wine, since the
+# game process itself is a Windows binary with no concept of native Linux paths.
+_DRIVE_LETTER_PATTERN = re.compile(r"^([A-Za-z]):[\\/](.*)$")
+
 # Extract Nexus mod ID from URL like:
 #   https://www.nexusmods.com/stardewvalley/mods/1063
 _NEXUS_MOD_ID_PATTERN = re.compile(
@@ -96,7 +101,7 @@ def parse_smapi_log_paths(log_path: Path) -> dict:
                     continue
                 match = _MODS_PATH_PATTERN.match(content.strip())
                 if match:
-                    mods = Path(match.group(1).strip())
+                    mods = _translate_proton_path(match.group(1).strip(), log_path)
                     result["mods_path"] = mods
                     result["game_path"] = mods.parent
                     break
@@ -104,6 +109,40 @@ def parse_smapi_log_paths(log_path: Path) -> dict:
         pass
 
     return result
+
+
+def _translate_proton_path(raw_path: str, log_path: Path) -> Path:
+    """
+    Translate a Windows-style path from a Proton/Wine SMAPI log into the
+    equivalent native Linux path.
+
+    Proton maps the host filesystem root to the Z: drive and the Wine
+    prefix's own C: drive to <prefix>/pfx/drive_c. Other drive letters
+    aren't recognized and are returned untranslated.
+    """
+    match = _DRIVE_LETTER_PATTERN.match(raw_path)
+    if not match:
+        return Path(raw_path)
+
+    drive, rest = match.group(1).upper(), match.group(2).replace("\\", "/")
+
+    if drive == "Z":
+        return Path("/" + rest)
+
+    if drive == "C":
+        pfx_dir = _find_proton_pfx(log_path)
+        if pfx_dir:
+            return pfx_dir / "drive_c" / rest
+
+    return Path(raw_path)
+
+
+def _find_proton_pfx(log_path: Path) -> Optional[Path]:
+    """Walk up from the log file to find the enclosing Proton prefix's 'pfx' directory."""
+    for parent in log_path.resolve().parents:
+        if parent.name == "pfx":
+            return parent
+    return None
 
 
 def _extract_nexus_mod_id(url: str) -> Optional[int]:

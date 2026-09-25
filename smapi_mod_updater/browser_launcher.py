@@ -9,6 +9,10 @@ Includes a small delay between tabs to avoid overwhelming the browser
 or triggering Nexus rate limiting.
 """
 
+import os
+import shutil
+import subprocess
+import sys
 import time
 import webbrowser
 from typing import Callable, Optional
@@ -20,6 +24,34 @@ from log_parser import get_files_tab_url
 # Too fast and the browser chokes or Nexus may throttle.
 # Too slow and the user is waiting for no reason.
 TAB_OPEN_DELAY = 0.5
+
+
+def _open_url(url: str) -> None:
+    """
+    Open a URL in the user's default browser, raising on failure.
+
+    webbrowser.open() on Linux merely launches xdg-open (or similar) as a
+    subprocess and reports success as soon as it starts, even if it exits
+    with an error (e.g. no display session, no MIME association) — so we
+    call xdg-open directly here to surface real failures instead of a
+    false "opened" result.
+    """
+    if sys.platform.startswith("linux") and shutil.which("xdg-open"):
+        if not (os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")):
+            raise RuntimeError("no graphical session detected (DISPLAY/WAYLAND_DISPLAY not set)")
+        result = subprocess.run(
+            ["xdg-open", url],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            stderr = result.stderr.decode(errors="replace").strip()
+            raise RuntimeError(stderr or f"xdg-open exited with code {result.returncode}")
+        return
+
+    if not webbrowser.open(url, new=2):
+        raise RuntimeError("no browser controller could open the URL")
 
 
 def open_download_pages(
@@ -65,7 +97,7 @@ def open_download_pages(
         url = get_files_tab_url(mod["url"])
 
         try:
-            webbrowser.open(url, new=2)  # new=2 = open in new tab
+            _open_url(url)
             results["opened"] += 1
             if on_progress:
                 on_progress(f"Opened {name}", i + 1, total)

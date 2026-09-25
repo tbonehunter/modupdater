@@ -26,7 +26,7 @@ from pathlib import Path
 
 APP_NAME = "SMAPI Mod Updater"
 EXE_NAME = "SMAPIModUpdater"
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 # Nexus manifest for the tool (NOT a SMAPI mod manifest — this just
 # identifies it on Nexus and in mod managers)
@@ -111,12 +111,12 @@ def main():
     # ─── Step 3: Add README ───────────────────────────────────────
     print("Step 3: Adding README...")
 
-    readme_src = repo_root / "README.md"
+    readme_src = repo_root / "Docs" / "README.md"
     if readme_src.is_file():
         shutil.copy2(readme_src, exe_dir / "README.md")
         print(f"  Copied: README.md")
     else:
-        print("  WARNING: README.md not found in repo root, skipping.")
+        print("  WARNING: README.md not found in Docs/, skipping.")
     print()
 
     # ─── Step 4: Set executable permission (Linux/macOS) ─────────
