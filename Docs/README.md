@@ -265,9 +265,12 @@ Each produces `dist/SMAPIModUpdater/` containing the executable, and a platform-
 
 This creates `dist/SMAPIModUpdater/` containing the executable, and a platform-appropriate archive ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the archive.
 
-> **Note:** PyInstaller cannot cross-compile. A Linux binary must be built on Linux, a macOS binary on macOS. The GitHub Actions workflow handles this automatically.
+> **Note:** PyInstaller cannot cross-compile. A Linux binary must be built on Linux, a macOS binary on macOS.
 
 ## Changelog
+
+### v1.2.2
+- **Fixed "Open Download Pages" crash on some Linux distros** — the bundled app was leaking its own `LD_LIBRARY_PATH` to the `xdg-open` subprocess, causing tools like `kde-open` to load the bundled (older) OpenSSL libraries instead of the system ones and fail with a symbol version error
 
 ### v1.2.1
 - **SteamOS/Proton support** — automatically translates Proton's Windows-style log paths to their real Linux location, so Steam Deck users don't need to manually resolve `Z:\` / `C:\` paths

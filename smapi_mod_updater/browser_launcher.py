@@ -26,6 +26,25 @@ from log_parser import get_files_tab_url
 TAB_OPEN_DELAY = 0.5
 
 
+def _subprocess_env() -> dict:
+    """
+    Build an environment for launching external programs (not part of our bundle).
+
+    PyInstaller's bootloader points LD_LIBRARY_PATH at the bundled _internal
+    folder so our own bundled libraries load first, saving the original value
+    as LD_LIBRARY_PATH_ORIG. Inheriting that path makes external tools like
+    xdg-open pick up our (older) bundled libcrypto/libssl instead of the
+    system ones, causing symbol version errors — so restore the original here.
+    """
+    env = os.environ.copy()
+    orig = env.pop("LD_LIBRARY_PATH_ORIG", None)
+    if orig is not None:
+        env["LD_LIBRARY_PATH"] = orig
+    else:
+        env.pop("LD_LIBRARY_PATH", None)
+    return env
+
+
 def _open_url(url: str) -> None:
     """
     Open a URL in the user's default browser, raising on failure.
@@ -44,6 +63,7 @@ def _open_url(url: str) -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE,
             timeout=5,
+            env=_subprocess_env(),
         )
         if result.returncode != 0:
             stderr = result.stderr.decode(errors="replace").strip()
