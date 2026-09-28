@@ -62,18 +62,33 @@ def get_exe_filename() -> str:
     return EXE_NAME
 
 
+# Per-platform build guide bundled into that platform's archive.
+# When adding support for a new platform, add its build doc here too.
+BUILD_DOC_BY_PLATFORM = {
+    "Windows": "Windows_build.md",
+    "Linux": "Linux_build.md",
+    "macOS": "MacOS_build.md",
+}
+
+
 def main():
     repo_root = Path(__file__).parent
     dist_dir = repo_root / "dist"
     build_dir = repo_root / "build"
     spec_file = repo_root / "SMAPIModUpdater.spec"
     platform_tag = get_platform_tag()
+    step_num = 0
+
+    def next_step(label: str) -> None:
+        nonlocal step_num
+        step_num += 1
+        print(f"Step {step_num}: {label}...")
 
     print(f"Building {APP_NAME} v{VERSION} for {platform_tag}...")
     print()
 
-    # ─── Step 1: Run PyInstaller ──────────────────────────────────
-    print("Step 1: Running PyInstaller...")
+    # ─── Step: Run PyInstaller ─────────────────────────────────────
+    next_step("Running PyInstaller")
 
     result = subprocess.run(
         [
@@ -98,8 +113,8 @@ def main():
     print(f"  Built to: {exe_dir}")
     print()
 
-    # ─── Step 2: Add manifest.json ────────────────────────────────
-    print("Step 2: Adding manifest.json...")
+    # ─── Step: Add manifest.json ───────────────────────────────────
+    next_step("Adding manifest.json")
 
     manifest_path = exe_dir / "manifest.json"
     manifest_path.write_text(
@@ -109,8 +124,8 @@ def main():
     print(f"  Written: {manifest_path}")
     print()
 
-    # ─── Step 3: Add README ───────────────────────────────────────
-    print("Step 3: Adding README...")
+    # ─── Step: Add README ───────────────────────────────────────────
+    next_step("Adding README")
 
     readme_src = repo_root / "Docs" / "README.md"
     if readme_src.is_file():
@@ -120,17 +135,29 @@ def main():
         print("  WARNING: README.md not found in Docs/, skipping.")
     print()
 
-    # ─── Step 4: Set executable permission (Linux/macOS) ─────────
+    # ─── Step: Add platform-specific build guide ───────────────────
+    next_step("Adding build guide")
+
+    build_doc_name = BUILD_DOC_BY_PLATFORM.get(platform_tag)
+    build_doc_src = repo_root / "Docs" / build_doc_name if build_doc_name else None
+    if build_doc_src and build_doc_src.is_file():
+        shutil.copy2(build_doc_src, exe_dir / build_doc_name)
+        print(f"  Copied: {build_doc_name}")
+    else:
+        print(f"  WARNING: {build_doc_name or '(no build doc mapped)'} not found in Docs/, skipping.")
+    print()
+
+    # ─── Step: Set executable permission (Linux/macOS) ─────────────
     if platform_tag != "Windows":
-        print("Step 4: Setting executable permission...")
+        next_step("Setting executable permission")
         exe_path = exe_dir / EXE_NAME
         if exe_path.is_file():
             exe_path.chmod(exe_path.stat().st_mode | 0o755)
             print(f"  chmod +x: {exe_path}")
         print()
 
-    # ─── Step 5: Create Nexus archive ─────────────────────────────
-    print(f"Step {'5' if platform_tag != 'Windows' else '4'}: Creating Nexus-ready archive...")
+    # ─── Step: Create Nexus archive ─────────────────────────────────
+    next_step("Creating Nexus-ready archive")
 
     archive_base = f"SMAPI Mod Updater {VERSION} ({platform_tag})"
 
