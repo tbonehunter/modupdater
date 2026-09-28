@@ -1,0 +1,431 @@
+/* style.css - SMAPI Mod Updater styling */
+
+:root {
+  --bg: #1a1a1e;
+  --bg-panel: #232328;
+  --bg-input: #17171b;
+  --border: #35353c;
+  --text: #e4e4e7;
+  --text-dim: #9a9aa2;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --green: #22c55e;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --gray: #6b7280;
+  --danger: #7f1d1d;
+  --danger-hover: #991b1b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 14px;
+}
+
+.app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Header ─────────────────────────────────────────────────── */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.version-tag {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* ─── Info / status rows ─────────────────────────────────────── */
+
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.info-label {
+  color: var(--text-dim);
+}
+
+.info-value {
+  flex: 1;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-bar {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+/* ─── Mod list ───────────────────────────────────────────────── */
+
+.mod-list-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.mod-list-header {
+  font-weight: 600;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mod-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.mod-list-empty {
+  padding: 16px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.mod-row {
+  display: grid;
+  grid-template-columns: 24px 1fr auto 28px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.mod-row:last-child {
+  border-bottom: none;
+}
+
+.mod-checkbox {
+  width: 16px;
+  height: 16px;
+}
+
+.mod-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mod-version {
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.mod-status {
+  text-align: right;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.mod-status-pending {
+  color: var(--gray);
+}
+
+.mod-status-downloading {
+  color: var(--yellow);
+}
+
+.mod-status-installed {
+  color: var(--green);
+}
+
+.mod-status-error {
+  color: var(--red);
+}
+
+.mod-status-skipped {
+  color: var(--gray);
+}
+
+/* ─── Buttons ────────────────────────────────────────────────── */
+
+.button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.button-row-primary .btn {
+  flex: 1;
+}
+
+.btn {
+  background: var(--bg-panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-small {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.btn-secondary {
+  padding: 6px 14px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  padding: 10px 14px;
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--danger);
+  color: #f87171;
+}
+
+.btn-danger:hover {
+  background: var(--danger);
+  border-color: var(--danger-hover);
+  color: #fff;
+}
+
+/* ─── Session log ────────────────────────────────────────────── */
+
+.log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.log-box {
+  height: 100px;
+  overflow-y: auto;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ─── Footer ─────────────────────────────────────────────────── */
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.footer-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.quit-message {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 15px;
+}
+
+/* ─── Modals ─────────────────────────────────────────────────── */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay.hidden {
+  display: none;
+}
+
+.modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.modal p {
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.field-label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 12px 0 4px;
+}
+
+.field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.field-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.field-static {
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+/* ─── Folder browser / SteamOS picker ────────────────────────── */
+
+.browse-current {
+  font-family: "Courier New", monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
+.browse-list {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.browse-entry {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.browse-entry:last-child {
+  border-bottom: none;
+}
+
+.browse-entry:hover {
+  background: var(--bg-input);
+}
+
+.browse-entry-up {
+  color: var(--text-dim);
+}
+
+/* ─── Issues dialog ──────────────────────────────────────────── */
+
+.issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.issues-empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 12px;
+}
+
+.issue-item {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+
+.issue-header {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.issue-detail {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* ─── Small screens ──────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .mod-row {
+    grid-template-columns: 20px 1fr 24px;
+  }
+  .mod-version {
+    display: none;
+  }
+}

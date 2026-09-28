@@ -45,7 +45,7 @@ def _subprocess_env() -> dict:
     return env
 
 
-def _open_url(url: str) -> None:
+def open_url(url: str) -> None:
     """
     Open a URL in the user's default browser, raising on failure.
 
@@ -117,7 +117,7 @@ def open_download_pages(
         url = get_files_tab_url(mod["url"])
 
         try:
-            _open_url(url)
+            open_url(url)
             results["opened"] += 1
             if on_progress:
                 on_progress(f"Opened {name}", i + 1, total)

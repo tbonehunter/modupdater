@@ -15,7 +15,9 @@ Keeps exactly one previous version per mod (overwrites older backups).
 """
 
 import json
+import os
 import shutil
+import stat
 import time
 import zipfile
 from pathlib import Path
@@ -397,6 +399,27 @@ def _remove_old_backups(backup_dir: Path, mod_folder_name: str):
 
 # ─── Install (Extract) ───────────────────────────────────────────
 
+def _clear_readonly(path: Path):
+    """
+    Clear the read-only attribute on a folder and everything inside it.
+
+    shutil.rmtree can't delete a read-only file or folder on Windows —
+    it raises PermissionError (WinError 5) regardless of how many times
+    you retry, since a delay doesn't change a file's attributes. Files
+    extracted from a zip sometimes end up marked read-only this way.
+    """
+    for root, dirs, files in os.walk(path):
+        for name in dirs + files:
+            try:
+                os.chmod(os.path.join(root, name), stat.S_IWRITE)
+            except OSError:
+                pass
+    try:
+        os.chmod(path, stat.S_IWRITE)
+    except OSError:
+        pass
+
+
 def _rmtree_with_retry(path: Path, retries: int = 3, delay: float = 0.5):
     """
     Remove a directory tree with retry logic for Windows.
@@ -404,12 +427,15 @@ def _rmtree_with_retry(path: Path, retries: int = 3, delay: float = 0.5):
     On Windows, antivirus scanners, search indexers, and other processes
     can briefly hold file locks that cause shutil.rmtree to fail with
     PermissionError. Retrying after a short delay usually resolves this.
+    Also clears the read-only attribute before each retry, since that's
+    a separate failure mode a delay alone can't fix.
     """
     for attempt in range(retries):
         try:
             shutil.rmtree(path)
             return
         except PermissionError:
+            _clear_readonly(path)
             if attempt < retries - 1:
                 time.sleep(delay)
             else:

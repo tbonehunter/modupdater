@@ -6,6 +6,7 @@ Config file (smapi_updater_config.json) stores:
   - SMAPI log path
   - Mods folder path (derived from SMAPI log header)
   - Downloads folder path
+  - Backup-failure policy (what to do when a mod's backup can't be made)
 
 The Mods path is read from the SMAPI log's "Mods go here:" header line,
 eliminating the need for Steam/GOG/filesystem scanning. SMAPI must have
@@ -27,6 +28,10 @@ from platform_utils import (
 
 # Config file lives next to the script (or next to the exe when frozen)
 CONFIG_FILENAME = "smapi_updater_config.json"
+
+# Valid values for backup_failure_policy — see get/set_backup_failure_policy.
+BACKUP_FAILURE_POLICIES = ("abort", "skip_backup", "prompt")
+DEFAULT_BACKUP_FAILURE_POLICY = "abort"
 
 
 def _get_config_path() -> Path:
@@ -54,6 +59,7 @@ def _default_config() -> dict:
         "downloads_folder": None,
         "smapi_log_path": None,
         "mods_path": None,
+        "backup_failure_policy": DEFAULT_BACKUP_FAILURE_POLICY,
     }
 
     # Auto-detect downloads folder
@@ -144,6 +150,9 @@ def _ensure_config_integrity(config: dict) -> dict:
     if "mods_path" not in config:
         config["mods_path"] = None
 
+    if config.get("backup_failure_policy") not in BACKUP_FAILURE_POLICIES:
+        config["backup_failure_policy"] = DEFAULT_BACKUP_FAILURE_POLICY
+
     # If mods_path is missing, try to derive from the SMAPI log
     if not config.get("mods_path"):
         log = config.get("smapi_log_path")
@@ -194,4 +203,22 @@ def refresh_mods_path(config: dict) -> dict:
         paths = parse_smapi_log_paths(Path(log))
         if paths["mods_path"]:
             config["mods_path"] = str(paths["mods_path"])
+    return config
+
+
+def get_backup_failure_policy(config: dict) -> str:
+    """
+    Return what to do when a mod's backup fails, before its update
+    would otherwise be installed:
+      "abort"        - skip the install (default; safest)
+      "skip_backup"  - install anyway, without a backup
+      "prompt"       - ask the user at the time of the failure
+    """
+    policy = config.get("backup_failure_policy", DEFAULT_BACKUP_FAILURE_POLICY)
+    return policy if policy in BACKUP_FAILURE_POLICIES else DEFAULT_BACKUP_FAILURE_POLICY
+
+
+def set_backup_failure_policy(config: dict, policy: str) -> dict:
+    """Set the backup-failure policy. Falls back to the default for an unrecognized value."""
+    config["backup_failure_policy"] = policy if policy in BACKUP_FAILURE_POLICIES else DEFAULT_BACKUP_FAILURE_POLICY
     return config

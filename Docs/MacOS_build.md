@@ -4,7 +4,6 @@
 ## Prerequisites
 
 - Python 3.10+ installed (via [python.org](https://www.python.org/downloads/) or Homebrew: `brew install python`)
-- Tkinter support (included with python.org installer; for Homebrew: `brew install python-tk`)
 
 ## Build
 

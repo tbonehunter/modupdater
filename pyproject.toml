@@ -33,7 +33,7 @@ classifiers = [
     "Topic :: Games/Entertainment",
 ]
 dependencies = [
-    "customtkinter>=5.2.0",
+    "flask>=3.0.0",
     "watchdog>=3.0.0",
 ]
 
@@ -45,3 +45,6 @@ Homepage = "https://github.com/tbonehunter/modupdater"
 
 [tool.setuptools.packages.find]
 include = ["smapi_mod_updater*"]
+
+[tool.setuptools.package-data]
+smapi_mod_updater = ["templates/*", "static/*"]

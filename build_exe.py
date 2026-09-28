@@ -21,12 +21,13 @@ import subprocess
 import sys
 from pathlib import Path
 
+from smapi_mod_updater.version import VERSION
+
 
 # ─── Configuration ────────────────────────────────────────────────
 
 APP_NAME = "SMAPI Mod Updater"
 EXE_NAME = "SMAPIModUpdater"
-VERSION = "1.2.2"
 
 # Nexus manifest for the tool (NOT a SMAPI mod manifest — this just
 # identifies it on Nexus and in mod managers)

@@ -15,16 +15,24 @@ block_cipher = None
 current_os = sys.platform  # 'win32', 'darwin', 'linux'
 
 # The smapi_mod_updater folder must be on the path so PyInstaller
-# can resolve the sibling imports (gui, config_manager, etc.)
+# can resolve the sibling imports (web_server, config_manager, etc.)
 pkg_dir = os.path.join(os.getcwd(), 'smapi_mod_updater')
+
+# templates/ and static/ are the browser UI's page and assets — bundled
+# as data files (not code) so web_server.py can find them at runtime
+# via sys._MEIPASS, the same way in onefile and onedir builds.
+datas = [
+    (os.path.join(pkg_dir, 'templates'), 'templates'),
+    (os.path.join(pkg_dir, 'static'), 'static'),
+]
 
 a = Analysis(
     ['smapi_mod_updater/main.py'],
     pathex=[pkg_dir],
     binaries=[],
-    datas=[],
+    datas=datas,
     hiddenimports=[
-        'gui',
+        'web_server',
         'log_parser',
         'browser_launcher',
         'download_watcher',
@@ -32,7 +40,7 @@ a = Analysis(
         'config_manager',
         'platform_utils',
         'session_logger',
-        'customtkinter',
+        'flask',
         'watchdog',
         'watchdog.observers',
         'watchdog.events',
@@ -59,7 +67,10 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=(current_os != 'win32'),  # Strip symbols on Linux/macOS
     upx=(current_os == 'win32'),    # UPX only reliable on Windows
-    console=False,  # No terminal window — GUI only
+    # A visible console window now doubles as the "stop the app" control
+    # for anyone who closes the browser tab without clicking Quit —
+    # there's no window handle to close a browser tab from anymore.
+    console=True,
 )
 
 coll = COLLECT(

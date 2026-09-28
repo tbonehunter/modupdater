@@ -1,0 +1,149 @@
+<!-- index.html - SMAPI Mod Updater main page -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SMAPI Mod Updater v{{ version }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header">
+      <h1>SMAPI Mod Updater <span class="version-tag">v{{ version }}</span></h1>
+      <button id="settings-btn" class="btn btn-secondary">Settings</button>
+    </header>
+
+    <!-- Mods folder info -->
+    <div class="info-row">
+      <span class="info-label">Mods:</span>
+      <span id="mods-path" class="info-value">(not detected — run SMAPI once)</span>
+      <button id="reload-btn" class="btn btn-small">Reload</button>
+    </div>
+
+    <!-- Status bar -->
+    <div id="status-bar" class="status-bar">No mods loaded.</div>
+
+    <!-- Mod list -->
+    <section class="mod-list-section">
+      <div class="mod-list-header">Available Updates</div>
+      <div id="mod-list" class="mod-list">
+        <div class="mod-list-empty">No updates loaded yet.</div>
+      </div>
+    </section>
+
+    <!-- Selection buttons -->
+    <div class="button-row">
+      <button id="select-all-btn" class="btn">Select All</button>
+      <button id="deselect-all-btn" class="btn">Deselect All</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="button-row button-row-primary">
+      <button id="open-pages-btn" class="btn btn-primary">Open Download Pages</button>
+      <button id="watch-install-btn" class="btn btn-primary">Watch &amp; Install</button>
+    </div>
+
+    <!-- Session log -->
+    <div class="log-header">
+      <span>Session Log</span>
+      <button id="issues-btn" class="btn btn-small" disabled>View Issues</button>
+    </div>
+    <div id="log-box" class="log-box"></div>
+
+    <footer class="footer">
+      <button id="quit-btn" class="btn btn-danger">Quit</button>
+      <span class="footer-hint">
+        Closing this tab does not stop the updater — use Quit, or close the console
+        window it was launched from.
+      </span>
+    </footer>
+  </div>
+
+  <!-- Settings dialog -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Settings</h2>
+
+      <label class="field-label" for="settings-log-path">SMAPI Log File:</label>
+      <div class="field-row">
+        <input type="text" id="settings-log-path" class="field-input" />
+        <button id="browse-log-btn" class="btn btn-small">Browse</button>
+      </div>
+
+      <label class="field-label" for="settings-downloads">Downloads Folder:</label>
+      <div class="field-row">
+        <input type="text" id="settings-downloads" class="field-input" />
+        <button id="browse-downloads-btn" class="btn btn-small">Browse</button>
+      </div>
+
+      <label class="field-label">Mods Folder (from SMAPI log):</label>
+      <div id="settings-mods-path" class="field-static">(not detected — run SMAPI once)</div>
+
+      <label class="field-label" for="settings-backup-policy">If a mod's backup fails:</label>
+      <select id="settings-backup-policy" class="field-input">
+        <option value="abort">Skip that mod's update (safest)</option>
+        <option value="skip_backup">Install anyway, without a backup</option>
+        <option value="prompt">Ask me each time</option>
+      </select>
+
+      <div class="modal-buttons">
+        <button id="settings-cancel-btn" class="btn">Cancel</button>
+        <button id="settings-save-btn" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backup-failure prompt (shown live when Settings is set to "Ask me each time") -->
+  <div id="backup-prompt-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Backup Failed</h2>
+      <p id="backup-prompt-text"></p>
+      <div class="modal-buttons">
+        <button id="backup-prompt-skip-btn" class="btn btn-danger">Skip This Mod</button>
+        <button id="backup-prompt-proceed-btn" class="btn btn-primary">Install Without Backup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- In-page folder browser (fallback when a path isn't auto-detected) -->
+  <div id="browse-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="browse-title">Choose a Folder</h2>
+      <div id="browse-current" class="browse-current"></div>
+      <div id="browse-list" class="browse-list"></div>
+      <div class="modal-buttons">
+        <button id="browse-cancel-btn" class="btn">Cancel</button>
+        <button id="browse-select-btn" class="btn btn-primary">Select This Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Issues dialog -->
+  <div id="issues-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2 id="issues-title">Session Issues</h2>
+      <div id="issues-list" class="issues-list"></div>
+      <div class="modal-buttons">
+        <button id="issues-close-btn" class="btn btn-primary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SteamOS log picker -->
+  <div id="steamos-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <h2>Select Stardew Valley Install</h2>
+      <p>SteamOS detected multiple Stardew Valley installs. Select the one you want to update:</p>
+      <div id="steamos-list" class="browse-list"></div>
+      <div class="modal-buttons">
+        <button id="steamos-cancel-btn" class="btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

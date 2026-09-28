@@ -1,6 +1,6 @@
 # SMAPI Mod Updater
 
-A cross-platform GUI tool that streamlines updating [Stardew Valley](https://www.stardewvalley.net/) mods from [Nexus Mods](https://www.nexusmods.com/stardewvalley). Parses SMAPI's update log, opens download pages, and automatically installs downloaded updates into your Mods folder — preserving your subfolder organization.
+A cross-platform tool that streamlines updating [Stardew Valley](https://www.stardewvalley.net/) mods from [Nexus Mods](https://www.nexusmods.com/stardewvalley). Parses SMAPI's update log, opens download pages, and automatically installs downloaded updates into your Mods folder — preserving your subfolder organization. The interface runs as a local web page in your default browser, so there's no platform-specific GUI toolkit to install or for it to break.
 
 ## The Problem
 
@@ -19,7 +19,7 @@ You still click "Slow Download" on each Nexus page (Nexus Premium not required),
 
 ## Features
 
-- **Cross-platform** — works on Windows, macOS, and Linux
+- **Cross-platform** — works on Windows, macOS, Linux, and Steam Deck, with no native GUI toolkit to break between platforms
 - **Subfolder preservation** — if you organize mods into subfolders (e.g., `Mods/Pathoschild/Automate/`), updates are installed back into the same location at any nesting depth
 - **Auto-detects** your Stardew Valley installation, SMAPI log, Mods folder, and Downloads folder — including automatic SteamOS/Proton detection for Steam Deck users
 - **Reload button** — re-reads the SMAPI log at any time, e.g. after running the game again
@@ -28,7 +28,8 @@ You still click "Slow Download" on each Nexus page (Nexus Premium not required),
 - **Version verification** — only installs the expected version, skips old downloads sitting in your folder
 - **Comment-tolerant manifest parsing** — handles SMAPI-style `/* */` and `//` comments in manifest.json
 - **One-click backup** — automatically backs up the previous version before installing
-- **Smart page opening** — "Open Download Pages" skips mods already installed in the current session
+- **Configurable backup safety net** — choose what happens if a mod's backup can't be made: skip that mod (default, safest), install anyway without a backup, or get asked each time it happens
+- **Smart page opening** — "Open Download Pages" skips mods already installed in the current session, and skips mods that already have a matching archive sitting in your Downloads folder instead of opening another duplicate tab
 - **Session log** — records what was done for easy troubleshooting
 
 ## Requirements
@@ -51,7 +52,7 @@ The simplest option — no Python installation required.
 
 **Step 3:** Double-click `SMAPIModUpdater.exe` to launch.
 
-That's it. To run it again in the future, just double-click the exe.
+A console window opens alongside your browser — that's normal. The tool starts a small local web server and opens it in your default browser automatically. To stop the updater, click **Quit** in the page, or close the console window. To run it again in the future, just double-click the exe.
 
 ### Option B: macOS / Linux Executable (recommended for Mac and Linux)
 
@@ -71,6 +72,8 @@ cd SMAPIModUpdater
 chmod +x SMAPIModUpdater
 ./SMAPIModUpdater
 ```
+
+Your terminal stays attached and your default browser opens to the tool automatically. Close the terminal (or click **Quit** in the page) to stop it.
 
 **macOS Gatekeeper note:** Since the app is not signed with an Apple Developer certificate, macOS will block it the first time. To allow it:
 - Right-click (or Control-click) `SMAPIModUpdater` → **Open**, then click **Open** in the dialog, **or**
@@ -107,19 +110,13 @@ pip install -r requirements.txt
 
 If `pip` isn't recognized, try `pip3` or `python -m pip` instead.
 
-> **macOS/Linux note:** If you see a Tkinter error on launch, install Tk support for your platform:
-> - **macOS (Homebrew):** `brew install python-tk`
-> - **Ubuntu/Debian:** `sudo apt install python3-tk`
-> - **Fedora:** `sudo dnf install python3-tkinter`
-> - **Arch:** `sudo pacman -S tk`
-
 **Step 4:** Launch the updater:
 
 ```bash
 python main.py
 ```
 
-That's it — the GUI window will appear. Each time you want to run the updater in the future, just repeat Step 2 and Step 4.
+That's it — it opens in your default browser automatically. Each time you want to run the updater in the future, just repeat Step 2 and Step 4.
 
 ### Option D: Install as a Python Package
 
@@ -142,15 +139,17 @@ Note: if you see a warning about the Scripts directory not being on PATH, you ca
 ## Usage
 
 1. **Launch Stardew Valley with SMAPI** at least once so it generates a fresh update log, then close the game
-2. **Run the updater** (double-click the exe / run `./SMAPIModUpdater` / `python main.py`) — it auto-detects your setup and shows which mods need updating
+2. **Run the updater** (double-click the exe / run `./SMAPIModUpdater` / `python main.py`) — it starts a local server, opens your default browser to it, and auto-detects your setup to show which mods need updating
 3. **Uncheck any mods** you want to skip (all are selected by default)
-4. **Click "Open Download Pages"** — your browser opens the Nexus Files tab for each mod
+4. **Click "Open Download Pages"** — your browser opens the Nexus Files tab for each mod that isn't already downloaded
 5. **Click "Slow Download" on each Nexus page** in your browser
 6. **Click "Watch & Install"** — the tool monitors your Downloads folder and installs each mod as it arrives
 
 If you've already downloaded some mods, just click "Watch & Install" directly — it scans existing files in your Downloads folder first and installs anything that matches.
 
-The "Open Download Pages" button skips mods that have already been installed in the current session, so you can click it again if you need to open pages for the remaining mods.
+The "Open Download Pages" button skips mods that have already been installed in the current session, and skips mods that already have a matching archive sitting in Downloads — so it's safe to click again if you need to open pages for the remaining mods.
+
+When you're done, click **Quit** in the page to stop the updater cleanly. Closing just the browser tab doesn't stop it — the console/terminal window it's running in is still there as a fallback if you forget.
 
 ## Subfolder Organization
 
@@ -176,10 +175,11 @@ For new mods that don't have an existing installation, they are installed at the
 
 ## Configuration
 
-On first run, the tool creates `smapi_updater_config.json` with auto-detected paths. The Mods folder path is read directly from SMAPI's log (its "Mods go here:" line), so it always matches what SMAPI itself is using. Use the **Settings** button to:
+On first run, the tool creates `smapi_updater_config.json` with auto-detected paths. The Mods folder path is read directly from SMAPI's log (its "Mods go here:" line), so it always matches what SMAPI itself is using. Use the **Settings** button in the page to:
 
 - Override the SMAPI log file location
 - Override the Downloads folder
+- Choose what happens if a mod's backup fails: **skip that mod's update** (default, safest), **install anyway without a backup**, or **ask each time** — the last option pauses that one mod and shows an inline prompt in the page, without holding up any other mods being watched at the same time
 
 The **Mods** bar at the top shows the detected Mods folder. Click **Reload** to re-read the SMAPI log, e.g. after running the game again.
 
@@ -187,10 +187,10 @@ The **Mods** bar at the top shows the detected Mods folder. Click **Reload** to 
 
 Stardew Valley on SteamOS typically runs through **Proton**, which means SMAPI (a Windows program) writes its log with a Windows-style path (e.g. `Z:\home\deck\...`) instead of a native Linux path. The updater handles this automatically:
 
-1. **Download and run the Linux build** (Option B above) in **Desktop Mode** — Game Mode sessions usually lack a working browser/display association needed for the Mods folder and "Open Download Pages" step.
+1. **Download and run the Linux build** (Option B above) in **Desktop Mode**. This matters more than it used to: the entire interface now runs through a browser, not just the "Open Download Pages" step, so Game Mode (which usually lacks a working browser/display association) won't work for any part of the tool.
 2. On launch, the tool detects SteamOS and searches your Steam library's `compatdata` folders for SMAPI's log:
    - **Exactly one install found** — configured automatically, no action needed.
-   - **Multiple installs found** (e.g. internal storage + SD card) — a dialog lets you pick which one to use.
+   - **Multiple installs found** (e.g. internal storage + SD card) — the page shows a picker for you to choose which one to use.
    - **None found** — run the game through Steam at least once so SMAPI generates a log, then click **Reload**.
 
 ### Manual setup (if auto-detection doesn't find your log)
@@ -226,6 +226,8 @@ The mod search is recursive — it walks the entire Mods directory tree to find 
 
 For multi-mod archives (like StonerValley which contains both a SMAPI mod and a Content Patcher pack), the tool finds and extracts all sub-mods, matching each to its correct existing folder by `UniqueID`.
 
+The interface itself is a small local Flask web server, started on launch and opened in your default browser. Live updates (progress, log lines, mod status) reach the page over Server-Sent Events, so the page reflects what's happening in the background even though the actual work — parsing, watching, backing up, extracting — all still happens in plain Python, unchanged from how it always worked.
+
 ## Project Structure
 
 ```
@@ -241,8 +243,11 @@ modupdater/                          ← repo root
 ├── SMAPIModUpdater.spec             # PyInstaller build configuration (cross-platform)
 └── smapi_mod_updater/               ← the actual tool
     ├── __init__.py
-    ├── main.py                      # Entry point
-    ├── gui.py                       # CustomTkinter GUI
+    ├── main.py                      # Entry point — starts the server, opens the browser
+    ├── web_server.py                # Flask routes, Server-Sent Events, app state
+    ├── templates/index.html         # The page itself
+    ├── static/app.js                # Front-end logic
+    ├── static/style.css             # Front-end styling
     ├── log_parser.py                # SMAPI log parsing
     ├── browser_launcher.py          # Opens Nexus download pages
     ├── download_watcher.py          # Watches Downloads folder, matches and installs
@@ -261,13 +266,19 @@ PyInstaller cannot cross-compile — each platform's build must be run on that p
 - [Docs/Linux_build.md](Linux_build.md)
 - [Docs/MacOS_build.md](MacOS_build.md)
 
-Each produces `dist/SMAPIModUpdater/` containing the executable, and a platform-appropriate zip archive ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the archive.
-
-This creates `dist/SMAPIModUpdater/` containing the executable, and a platform-appropriate archive ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the archive.
+Each produces `dist/SMAPIModUpdater/` containing the executable (plus the bundled `templates/`/`static/` files it needs to serve the page), and a platform-appropriate zip archive ready for Nexus upload. The build script automatically includes a `manifest.json` and the README in the archive.
 
 > **Note:** PyInstaller cannot cross-compile. A Linux binary must be built on Linux, a macOS binary on macOS.
 
 ## Changelog
+
+### v2.0.0
+- **Replaced the native GUI with a browser-based interface** — the tool now runs a small local web server and opens itself in your default browser instead of a CustomTkinter window. This removes the Tcl/Tk dependency entirely, which is what caused packaging failures on some platforms in the first place.
+- **Fixed a backup failure caused by Windows read-only file attributes** — `shutil.rmtree` can't delete a read-only file or folder on Windows no matter how many times it's retried; a delay-and-retry alone never fixed it. Backups and extraction now clear the read-only attribute before retrying a failed delete.
+- **Fixed a related failure where a leftover backup folder could block the next one** — if an old backup for a mod couldn't be fully removed (e.g. due to the read-only issue above), the next backup attempt for that mod would fail with no clear explanation. Old backups are now removed with the same retry-and-clear logic as everything else.
+- **"Open Download Pages" now skips mods already sitting in Downloads** — instead of opening another Nexus tab (and creating another "(1)", "(2)"-style duplicate download) for a mod you've already downloaded, the tool checks for a matching archive first and skips the browser if it finds one.
+- **New Settings option for backup failures** — choose whether a failed backup should skip that mod's update (the original, safest behavior and still the default), install anyway without a backup, or prompt you in the page each time it happens.
+- **Quit button** — since there's no window to close anymore, the page has an explicit Quit button that stops the server; the console/terminal window it launches from remains as a fallback for anyone who just closes the browser tab.
 
 ### v1.2.2
 - **Fixed "Open Download Pages" crash on some Linux distros** — the bundled app was leaking its own `LD_LIBRARY_PATH` to the `xdg-open` subprocess, causing tools like `kde-open` to load the bundled (older) OpenSSL libraries instead of the system ones and fail with a symbol version error
@@ -305,6 +316,7 @@ This creates `dist/SMAPIModUpdater/` containing the executable, and a platform-a
 - **Nexus free tier only** — you must click "Slow Download" manually on each mod page. Nexus Premium API downloads are not supported.
 - **Zip archives only** — `.rar` and `.7z` are not currently supported (most Stardew mods use zip).
 - **SMAPI log must be current** — run SMAPI at least once after your last update session so the log reflects what still needs updating.
+- **Runs a local web server** (`127.0.0.1`, a free port starting at 5317) — needs a browser installed. If one doesn't open automatically, the console window prints the address to open manually.
 
 ## License
 

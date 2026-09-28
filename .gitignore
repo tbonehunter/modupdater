@@ -26,6 +26,9 @@ SMAPI-latest.txt
 # Virtual environments
 .venv/
 
+# Ad-hoc diff/change dumps (not meant for version control)
+Docs/*_changes.txt
+
 # IDE
 .vscode/
 .idea/

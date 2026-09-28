@@ -6,7 +6,7 @@
 From inside WSL (Ubuntu):
 
 ```bash
-sudo apt update && sudo apt install -y python3-venv python3-full python3-tk
+sudo apt update && sudo apt install -y python3-venv python3-full
 ```
 
 ## Build

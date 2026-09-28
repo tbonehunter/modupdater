@@ -74,6 +74,46 @@ def _versions_equivalent(version_a: str, version_b: str) -> bool:
     return parts_a == parts_b
 
 
+def find_existing_download(downloads_path: Path, mod: dict) -> Optional[Path]:
+    """
+    Check whether an archive already sitting in Downloads matches this
+    mod's expected update, without processing or installing it.
+
+    Used by Phase 2 (browser_launcher, via web_server) to skip
+    re-opening a Nexus download page for a mod that's already been
+    downloaded — avoiding the pile of "(1)", "(2)", "(3)" duplicate
+    files a browser creates when the same page is opened repeatedly.
+    """
+    matcher = ModMatcher([mod])
+    expected_version = mod.get("available", "")
+
+    try:
+        candidates = [
+            f for f in downloads_path.iterdir()
+            if f.is_file() and f.suffix.lower() in ARCHIVE_EXTENSIONS
+        ]
+    except OSError:
+        return None
+
+    for archive_path in candidates:
+        all_manifests = read_all_manifests_from_archive(archive_path)
+        if not all_manifests:
+            continue
+
+        primary = all_manifests[0]["manifest"]
+        if matcher.match(primary) is None:
+            continue
+
+        mod_version = get_version_from_manifest(primary) or "unknown"
+        if expected_version and mod_version != expected_version:
+            if not _versions_equivalent(mod_version, expected_version):
+                continue
+
+        return archive_path
+
+    return None
+
+
 class ModMatcher:
     """
     Matches downloaded archives to the list of mods pending update.
@@ -172,17 +212,23 @@ class DownloadWatcher:
         on_status: Optional[Callable[[str], None]] = None,
         on_complete: Optional[Callable[[], None]] = None,
         on_issue: Optional[Callable[[str, str, str], None]] = None,
+        on_backup_failure: Optional[Callable[[str, str], str]] = None,
     ):
         """
         Args:
-            downloads_path:   Folder to watch for new downloads
-            mods_path:        Stardew Valley Mods folder
-            pending_mods:     List of mod dicts to watch for
-            on_mod_installed: Callback(mod_dict, message) on successful install
-            on_mod_error:     Callback(mod_dict, error_message) on failure
-            on_status:        Callback(message) for general status updates
-            on_complete:      Callback() when all mods have been installed
-            on_issue:         Callback(mod_name, reason, detail) to report issues
+            downloads_path:    Folder to watch for new downloads
+            mods_path:         Stardew Valley Mods folder
+            pending_mods:      List of mod dicts to watch for
+            on_mod_installed:  Callback(mod_dict, message) on successful install
+            on_mod_error:      Callback(mod_dict, error_message) on failure
+            on_status:         Callback(message) for general status updates
+            on_complete:       Callback() when all mods have been installed
+            on_issue:          Callback(mod_name, reason, detail) to report issues
+            on_backup_failure: Callback(mod_name, folder_name) -> "skip_backup" | "abort",
+                               consulted when a backup fails. Returning "skip_backup"
+                               proceeds with the install anyway; anything else
+                               (including no callback) aborts that mod's install,
+                               same as the original behavior.
         """
         self._downloads_path = downloads_path
         self._mods_path = mods_path
@@ -192,6 +238,7 @@ class DownloadWatcher:
         self._on_status = on_status
         self._on_complete = on_complete
         self._on_issue = on_issue
+        self._on_backup_failure = on_backup_failure
 
         self._running = False
         self._thread: Optional[threading.Thread] = None
@@ -501,19 +548,31 @@ class DownloadWatcher:
             backup_path = backup_mod(self._mods_path, installed_folder)
             if backup_path:
                 self._status(f"  Backed up {installed_folder.name} to .backups/")
-            else:
-                self._error(
-                    matched_mod,
-                    f"Failed to back up {installed_folder.name}. Skipping install."
+                continue
+
+            decision = "abort"
+            if self._on_backup_failure:
+                decision = self._on_backup_failure(sub_name, installed_folder.name)
+
+            if decision == "skip_backup":
+                self._status(
+                    f"  Proceeding without a backup of {installed_folder.name} "
+                    f"(backup failed; continuing per your Settings)."
                 )
-                self._report_issue(
-                    mod_name,
-                    "Backup failed",
-                    f"Could not create a backup of '{installed_folder.name}' "
-                    f"before updating. The install was skipped to avoid data "
-                    f"loss. Check that the Mods folder is writable."
-                )
-                return
+                continue
+
+            self._error(
+                matched_mod,
+                f"Failed to back up {installed_folder.name}. Skipping install."
+            )
+            self._report_issue(
+                mod_name,
+                "Backup failed",
+                f"Could not create a backup of '{installed_folder.name}' "
+                f"before updating. The install was skipped to avoid data "
+                f"loss. Check that the Mods folder is writable."
+            )
+            return
 
         # Step 6: Extract all sub-mods
         is_multi = len(all_manifests) > 1
