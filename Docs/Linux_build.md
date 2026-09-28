@@ -37,4 +37,4 @@ python build_exe.py
 
 ## Output
 
-The build produces a zip in `dist/`, e.g. `dist/SMAPIModUpdater-1.2.0-linux-x86_64.zip`.
+The build produces a zip in `dist/`, e.g. `dist/SMAPI Mod Updater 2.0.0 (Linux).zip`. Running the executable starts a local web server and opens the tool in your default browser.
