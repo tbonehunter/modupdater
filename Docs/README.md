@@ -277,6 +277,11 @@ This creates `dist/SMAPIModUpdater/` containing the executable, and a platform-a
 - **SteamOS auto-detection** — detects SteamOS on launch and scans Steam library `compatdata` folders for the SMAPI log; auto-configures it when exactly one install is found, or shows a picker dialog when there are several
 - **More reliable browser launching on Linux** — opening Nexus download pages now reports a real error instead of a false "Opened" message when the browser fails to launch (e.g. no display session)
 
+### v1.2.0
+- **macOS and Linux standalone executables** — no Python installation required
+- **GitHub Actions CI** — automated cross-platform builds on tagged releases
+- **Cross-platform build script** — `build_exe.py` now detects the OS and produces the correct archive format
+
 ### v1.1.0
 - **Subfolder preservation** — mods organized into subfolders are now updated in place at any nesting depth
 - **Recursive mod search** — finds installed mods anywhere in the Mods directory tree
@@ -294,11 +299,6 @@ This creates `dist/SMAPIModUpdater/` containing the executable, and a platform-a
 - Existing download scan
 - Comment-tolerant manifest parsing
 - Cross-platform support (Windows exe, Mac/Linux from source)
-
-### v1.2.0
-- **macOS and Linux standalone executables** — no Python installation required
-- **GitHub Actions CI** — automated cross-platform builds on tagged releases
-- **Cross-platform build script** — `build_exe.py` now detects the OS and produces the correct archive format
 
 ## Known Limitations
 
