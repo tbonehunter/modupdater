@@ -11,7 +11,7 @@
 1. Open a terminal (PowerShell or Command Prompt) and navigate to the project directory:
 
 ```powershell
-cd "C:\Users\HP\Documents\Stardew Modding\Stan's Mods\Finished Mods\Updater"
+cd "C:\path\to\Updater"
 ```
 
 2. Create a virtual environment, install dependencies, and build:
@@ -29,7 +29,7 @@ python build_exe.py
 If the venv already exists, skip creation:
 
 ```powershell
-cd "C:\Users\HP\Documents\Stardew Modding\Stan's Mods\Finished Mods\Updater"
+cd "C:\path\to\Updater"
 .venv\Scripts\activate
 python build_exe.py
 ```

@@ -14,7 +14,7 @@ sudo apt update && sudo apt install -y python3-venv python3-full
 1. Navigate to the project directory:
 
 ```bash
-cd '/mnt/c/Users/HP/Documents/Stardew Modding/Stan'\''s Mods/Finished Mods/Updater'
+cd /mnt/c/path/to/Updater
 ```
 
 2. Create a venv on the native Linux filesystem, install dependencies, and build:
@@ -30,7 +30,7 @@ python3 -m venv ~/updater-venv && source ~/updater-venv/bin/activate && pip inst
 If the venv already exists, skip creation:
 
 ```bash
-cd '/mnt/c/Users/HP/Documents/Stardew Modding/Stan'\''s Mods/Finished Mods/Updater'
+cd /mnt/c/path/to/Updater
 source ~/updater-venv/bin/activate
 python build_exe.py
 ```
