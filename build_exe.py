@@ -21,8 +21,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-from smapi_mod_updater.version import VERSION
-from smapi_mod_updater.nexus_updater import NEXUS_MOD_ID
+# smapi_mod_updater's modules use flat sibling imports (e.g. nexus_updater.py
+# does `from version import VERSION`, not a relative import), matching how
+# main.py/the PyInstaller spec put that folder directly on sys.path at
+# runtime — so mirror that here rather than importing it as a dotted package.
+sys.path.insert(0, str(Path(__file__).parent / "smapi_mod_updater"))
+
+from version import VERSION
+from nexus_updater import NEXUS_MOD_ID
 
 
 # ─── Configuration ────────────────────────────────────────────────
