@@ -5,4 +5,4 @@ by web_server.py (to show the version in the page's title and header),
 so there's exactly one place to update on a release.
 """
 
-VERSION = "2.0.0"
+VERSION = "2.1.0"

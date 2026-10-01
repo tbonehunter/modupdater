@@ -7,6 +7,7 @@ Config file (smapi_updater_config.json) stores:
   - Mods folder path (derived from SMAPI log header)
   - Downloads folder path
   - Backup-failure policy (what to do when a mod's backup can't be made)
+  - Nexus personal API key (testing-build only — see nexus_updater.py)
 
 The Mods path is read from the SMAPI log's "Mods go here:" header line,
 eliminating the need for Steam/GOG/filesystem scanning. SMAPI must have
@@ -60,6 +61,7 @@ def _default_config() -> dict:
         "smapi_log_path": None,
         "mods_path": None,
         "backup_failure_policy": DEFAULT_BACKUP_FAILURE_POLICY,
+        "nexus_api_key": None,
     }
 
     # Auto-detect downloads folder
@@ -153,6 +155,9 @@ def _ensure_config_integrity(config: dict) -> dict:
     if config.get("backup_failure_policy") not in BACKUP_FAILURE_POLICIES:
         config["backup_failure_policy"] = DEFAULT_BACKUP_FAILURE_POLICY
 
+    if "nexus_api_key" not in config:
+        config["nexus_api_key"] = None
+
     # If mods_path is missing, try to derive from the SMAPI log
     if not config.get("mods_path"):
         log = config.get("smapi_log_path")
@@ -221,4 +226,23 @@ def get_backup_failure_policy(config: dict) -> str:
 def set_backup_failure_policy(config: dict, policy: str) -> dict:
     """Set the backup-failure policy. Falls back to the default for an unrecognized value."""
     config["backup_failure_policy"] = policy if policy in BACKUP_FAILURE_POLICIES else DEFAULT_BACKUP_FAILURE_POLICY
+    return config
+
+
+def get_nexus_api_key(config: dict) -> Optional[str]:
+    """
+    Return the user's personal Nexus API key, if one is set.
+
+    Testing-build only: used solely to check for updates to this tool
+    itself (see nexus_updater.py). Will be replaced by Nexus's SSO
+    flow once this tool is a registered application — see that
+    module's docstring for details.
+    """
+    key = config.get("nexus_api_key")
+    return key if key else None
+
+
+def set_nexus_api_key(config: dict, api_key: str) -> dict:
+    """Set (or clear, with an empty string) the personal Nexus API key."""
+    config["nexus_api_key"] = api_key.strip() or None
     return config

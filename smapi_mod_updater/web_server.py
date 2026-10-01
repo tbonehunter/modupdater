@@ -13,9 +13,10 @@ Architecture:
   AppState   - Holds config, the session logger, the current mod list
                (each entry tagged with a stable "id" and a live
                "status"), the active DownloadWatcher (if any), the set
-               of subscriber queues used to fan out SSE events, and
-               the pending backup-failure decisions awaiting a browser
-               response (see request_backup_decision).
+               of subscriber queues used to fan out SSE events, the
+               pending backup-failure decisions awaiting a browser
+               response (see request_backup_decision), and this
+               tool's own update-check result (see update_info).
   create_app - Builds the Flask app and wires routes against an
                AppState instance. Returns (app, state) so main.py can
                run initial_load() before starting the server.
@@ -30,7 +31,9 @@ SSE event types pushed to /api/events:
                                                       must answer via
                                                       /api/backup-decision
   "state"          full state dict                - mod list was replaced
-                                                      (reload / settings / steamos-select)
+                                                      (reload / settings / steamos-select),
+                                                      or this tool's own update
+                                                      check finished
 """
 
 import json
@@ -51,14 +54,17 @@ from config_manager import (
     get_downloads_path,
     get_log_path,
     get_mods_path,
+    get_nexus_api_key,
     load_config,
     refresh_mods_path,
     save_config,
     set_backup_failure_policy,
+    set_nexus_api_key,
     update_downloads_path,
 )
 from download_watcher import DownloadWatcher, find_existing_download
 from log_parser import parse_smapi_log
+from nexus_updater import check_for_update
 from platform_utils import find_steamos_smapi_logs, get_steam_app_name, is_steamos
 from session_logger import SessionLogger
 from version import VERSION
@@ -104,6 +110,11 @@ class AppState:
         self.logger = SessionLogger()
         self.mods: list[dict] = []
         self.watcher: Optional[DownloadWatcher] = None
+
+        # Result of the last self-update check (see _check_for_self_update).
+        # None until the background check completes, and again whenever
+        # no update is available.
+        self.update_info: Optional[dict] = None
 
         self._subscribers: list[queue.Queue] = []
         self._sub_lock = threading.Lock()
@@ -165,10 +176,19 @@ class AppState:
                     break
         self.broadcast("mod_status", {"id": mod_id, "status": status})
 
+    # ─── Self-update check ────────────────────────────────────────
+
+    def set_update_info(self, info: Optional[dict]):
+        """Store the result of a self-update check and notify connected browsers."""
+        with self.lock:
+            self.update_info = info
+        self.broadcast("state", self.to_dict())
+
     def to_dict(self) -> dict:
         """Full state snapshot sent as the initial payload and after "state" events."""
         with self.lock:
             mods_snapshot = [dict(m) for m in self.mods]
+            update_info = self.update_info
 
         mods_path = get_mods_path(self.config)
         downloads_path = get_downloads_path(self.config)
@@ -183,6 +203,7 @@ class AppState:
             "watching": bool(self.watcher and self.watcher.is_running),
             "issue_count": self.logger.issue_count,
             "backup_failure_policy": get_backup_failure_policy(self.config),
+            "update_available": update_info,
         }
 
     # ─── Backup-failure decisions ("prompt" policy) ──────────────
@@ -270,11 +291,34 @@ def _list_dirs(path_str: Optional[str]) -> dict:
     return {"path": str(p), "parent": parent, "entries": entries}
 
 
+def _check_for_self_update(state: AppState):
+    """
+    Runs in a background thread: asks Nexus whether a newer version of
+    this tool has been published, and updates state if so.
+
+    Deliberately not called inline from initial_load() — a slow or
+    unreachable Nexus API shouldn't delay the page from loading. The
+    page picks up the result later via the "state" SSE event that
+    set_update_info() broadcasts.
+    """
+    api_key = get_nexus_api_key(state.config)
+    if not api_key:
+        return
+
+    info = check_for_update(api_key)
+    if info:
+        state.logger.info(
+            f"A newer version of SMAPI Mod Updater is available: v{info['version']}"
+        )
+    state.set_update_info(info)
+
+
 def initial_load(state: AppState):
     """
     Run once at startup: SteamOS auto-detection (mirrors the old GUI's
-    _check_steamos), then the first log parse. Call this before the
-    Flask server starts serving requests.
+    _check_steamos), the first log parse, and kicking off the
+    self-update check in the background. Call this before the Flask
+    server starts serving requests.
     """
     if is_steamos():
         state.logger.info("SteamOS detected.")
@@ -296,6 +340,8 @@ def initial_load(state: AppState):
             # and prompts the user to pick one; nothing to do here.
 
     _reload_mods(state)
+
+    threading.Thread(target=_check_for_self_update, args=(state,), daemon=True).start()
 
 
 # ─── App factory ────────────────────────────────────────────────────
@@ -345,6 +391,7 @@ def create_app() -> tuple[Flask, AppState]:
                 "downloads_folder": state.config.get("downloads_folder"),
                 "mods_path": state.config.get("mods_path"),
                 "backup_failure_policy": get_backup_failure_policy(state.config),
+                "nexus_api_key": get_nexus_api_key(state.config),
             }
         )
 
@@ -364,6 +411,13 @@ def create_app() -> tuple[Flask, AppState]:
         policy = body.get("backup_failure_policy")
         if policy:
             set_backup_failure_policy(state.config, policy)
+
+        # nexus_api_key is intentionally handled whenever the field is
+        # present at all (even empty), so clearing it in Settings works —
+        # unlike the paths/policy above, which only apply when non-blank.
+        if "nexus_api_key" in body:
+            set_nexus_api_key(state.config, body.get("nexus_api_key") or "")
+            threading.Thread(target=_check_for_self_update, args=(state,), daemon=True).start()
 
         save_config(state.config)
         state.logger.info("Settings saved.")

@@ -59,6 +59,24 @@ body {
   margin-left: 4px;
 }
 
+/* ─── Update-available banner ────────────────────────────────── */
+
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.update-banner.hidden {
+  display: none;
+}
+
 /* ─── Info / status rows ─────────────────────────────────────── */
 
 .info-row {
@@ -425,6 +443,7 @@ body {
   .mod-row {
     grid-template-columns: 20px 1fr 24px;
   }
+
   .mod-version {
     display: none;
   }

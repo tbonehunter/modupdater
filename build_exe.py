@@ -22,6 +22,7 @@ import sys
 from pathlib import Path
 
 from smapi_mod_updater.version import VERSION
+from smapi_mod_updater.nexus_updater import NEXUS_MOD_ID
 
 
 # ─── Configuration ────────────────────────────────────────────────
@@ -42,6 +43,7 @@ NEXUS_MANIFEST = {
         "installation and usage"
     ),
     "UniqueID": "tbonehunter.SMAPIModUpdater",
+    "NexusModID": NEXUS_MOD_ID,
 }
 
 

@@ -19,6 +19,10 @@
   // ─── Element refs ───────────────────────────────────────────────
 
   const el = {
+    updateBanner: document.getElementById("update-banner"),
+    updateBannerText: document.getElementById("update-banner-text"),
+    updateBannerBtn: document.getElementById("update-banner-btn"),
+
     modsPath: document.getElementById("mods-path"),
     reloadBtn: document.getElementById("reload-btn"),
     statusBar: document.getElementById("status-bar"),
@@ -37,6 +41,7 @@
     settingsDownloads: document.getElementById("settings-downloads"),
     settingsModsPath: document.getElementById("settings-mods-path"),
     settingsBackupPolicy: document.getElementById("settings-backup-policy"),
+    settingsNexusKey: document.getElementById("settings-nexus-key"),
     settingsSaveBtn: document.getElementById("settings-save-btn"),
     settingsCancelBtn: document.getElementById("settings-cancel-btn"),
     browseLogBtn: document.getElementById("browse-log-btn"),
@@ -99,10 +104,22 @@
     renderStatusBar();
     updateIssuesButton(state.issue_count);
     updateWatchButton();
+    renderUpdateBanner(state.update_available);
 
     if (state.is_steamos && !state.log_path) {
       maybeShowSteamosPicker();
     }
+  }
+
+  function renderUpdateBanner(updateAvailable) {
+    if (!updateAvailable) {
+      el.updateBanner.classList.add("hidden");
+      return;
+    }
+    el.updateBannerText.textContent =
+      `A newer version (v${updateAvailable.version}) of SMAPI Mod Updater is available.`;
+    el.updateBanner.dataset.url = updateAvailable.url;
+    el.updateBanner.classList.remove("hidden");
   }
 
   function renderStatusBar() {
@@ -216,6 +233,11 @@
     applyState(await apiPost("/api/reload"));
   });
 
+  el.updateBannerBtn.addEventListener("click", () => {
+    const url = el.updateBanner.dataset.url;
+    if (url) window.open(url, "_blank");
+  });
+
   el.selectAllBtn.addEventListener("click", () => {
     el.modList.querySelectorAll(".mod-checkbox").forEach((c) => (c.checked = true));
   });
@@ -315,6 +337,7 @@
     el.settingsDownloads.value = settings.downloads_folder || "";
     el.settingsModsPath.textContent = settings.mods_path || "(not detected — run SMAPI once)";
     el.settingsBackupPolicy.value = settings.backup_failure_policy || "abort";
+    el.settingsNexusKey.value = settings.nexus_api_key || "";
     showModal(el.settingsModal);
   });
 
@@ -325,6 +348,7 @@
       smapi_log_path: el.settingsLogPath.value.trim(),
       downloads_folder: el.settingsDownloads.value.trim(),
       backup_failure_policy: el.settingsBackupPolicy.value,
+      nexus_api_key: el.settingsNexusKey.value.trim(),
     });
     applyState(state);
     hideModal(el.settingsModal);
