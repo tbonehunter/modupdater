@@ -41,6 +41,19 @@
 
 - Version bumped from 2.0.0 to 2.1.0.
 
+### Fixed
+
+- **`build_exe.py` crashed with `ModuleNotFoundError: No module named 'version'`.**
+  It imported the new `nexus_updater` module as the dotted package
+  `smapi_mod_updater.nexus_updater`, but `nexus_updater.py` (like every
+  other module in `smapi_mod_updater/`) uses a flat sibling import,
+  `from version import VERSION`, which only resolves when that folder
+  is directly on `sys.path` — true at runtime (via `main.py` and the
+  PyInstaller spec's `pathex`), but not for a dotted package import
+  from the repo root. Fixed by having `build_exe.py` insert
+  `smapi_mod_updater/` onto `sys.path` and import `nexus_updater` and
+  `version` the same flat way, matching the real runtime layout.
+
 ### Files touched
 
 | File | Change |
@@ -52,7 +65,7 @@
 | `templates/index.html` | Added the update banner markup and the Nexus API Key field in the Settings dialog. |
 | `static/style.css` | Added `.update-banner` styling. |
 | `static/app.js` | Renders the banner from app state, wires its Download button to open the Nexus page, and reads/writes the API key field in Settings. |
-| `build_exe.py` | Added `NexusModID` to `NEXUS_MANIFEST`. |
+| `build_exe.py` | Added `NexusModID` to `NEXUS_MANIFEST`; fixed the `nexus_updater` import to use `sys.path` insertion instead of a dotted package import. |
 
 ### Known limitation
 
